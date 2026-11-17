@@ -63,16 +63,19 @@ def validate(p):
                 volume = c.get('volume', 100)
                 if type(volume) not in (int, float) or not 0 <= volume <= 100:
                     raise ValueError('Invalid sound volume')
-            elif kind == 'show_image':
+            elif kind in ('show_image', 'show_video'):
                 if not c.get('file'):
-                    raise ValueError('Missing image file')
+                    raise ValueError('Missing media file')
                 if c.get('transition', 'fade') not in ('fade', 'none'):
-                    raise ValueError('Invalid image transition')
+                    raise ValueError('Invalid media transition')
+                duration = c.get('duration', 0.5)
+                if type(duration) not in (int, float) or not 0.05 <= duration <= 5:
+                    raise ValueError('Invalid media transition duration')
             elif kind == 'and':
-                if index == 0 or items[index - 1].get('type') not in ('text', 'sound', 'show_image', 'hide_image'):
+                if index == 0 or items[index - 1].get('type') not in ('text', 'sound', 'show_image', 'show_video', 'hide_image'):
                     raise ValueError('AND must follow text or a media action')
-                if index + 1 >= len(items) or items[index + 1].get('type') not in ('sound', 'show_image', 'hide_image'):
-                    raise ValueError('After AND, use sound, show image or hide image')
+                if index + 1 >= len(items) or items[index + 1].get('type') not in ('sound', 'show_image', 'show_video', 'hide_image'):
+                    raise ValueError('After AND, use sound, image, video or hide')
             elif kind == 'hide_image':
                 pass
             elif kind not in ('text', 'comment', 'separator'):

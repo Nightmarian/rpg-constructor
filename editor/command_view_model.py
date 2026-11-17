@@ -37,9 +37,11 @@ def describe(c, p):
     if kind == 'sound':
         return 'Звук: ' + c.get('file', '') + ' — ' + str(c.get('volume', 100)) + '%'
     if kind == 'show_image':
-        return 'Картинка/GIF: ' + c.get('file', '') + (' — плавно' if c.get('transition', 'fade') == 'fade' else ' — сразу')
+        return 'Картинка/GIF: ' + c.get('file', '') + (' — плавно ' + str(c.get('duration', 0.5)) + ' с' if c.get('transition', 'fade') == 'fade' else ' — сразу')
+    if kind == 'show_video':
+        return 'Видео: ' + c.get('file', '') + (' — плавно ' + str(c.get('duration', 0.5)) + ' с' if c.get('transition', 'fade') == 'fade' else ' — сразу')
     if kind == 'hide_image':
-        return 'Скрыть последнюю картинку'
+        return 'Скрыть последнюю картинку/видео'
     if kind == 'and':
         return 'И — вместе с предыдущим'
     condition = c['condition']
@@ -58,7 +60,7 @@ def build_rows(items, p, width, measure):
         for i, c in enumerate(commands):
             key = 'c' + path + str(i)
             kind = c['type']
-            linked = previous == 'and' and kind in ('sound', 'show_image', 'hide_image')
+            linked = previous == 'and' and kind in ('sound', 'show_image', 'show_video', 'hide_image')
             tag = 'branch' if kind == 'if' else 'note' if kind in ('comment', 'separator') else 'even' if i % 2 == 0 else 'odd'
             available = max(40, width - 44 - depth * 20 - (20 if kind == 'if' else 0) - measure('    '))
             prefix = '↳ ' if linked else ''

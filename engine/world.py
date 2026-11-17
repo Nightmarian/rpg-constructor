@@ -60,8 +60,8 @@ class World:
                 raise RuntimeError('Too many event commands in one interaction')
             c = self.pending.pop(0)
             if c.get('type') == 'and':
-                if not self.pending or self.pending[0].get('type') not in ('sound', 'show_image', 'hide_image'):
-                    raise ValueError('После И используйте звук, картинку или скрытие картинки')
+                if not self.pending or self.pending[0].get('type') not in ('sound', 'show_image', 'show_video', 'hide_image'):
+                    raise ValueError('После И используйте звук, картинку, видео или скрытие')
                 c = self.pending.pop(0)
             kind = c['type']
             if kind == 'text':
@@ -82,7 +82,7 @@ class World:
                     self._transfer(c)
             elif kind == 'sound':
                 self._play_sound(c)
-            elif kind == 'show_image':
+            elif kind in ('show_image', 'show_video'):
                 item = dict(c)
                 item['shown_at'] = time.monotonic()
                 self.images.append(item)

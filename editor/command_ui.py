@@ -5,7 +5,7 @@ from tkinter import ttk, messagebox, filedialog
 from editor.modal import wait
 from editor.scroll_panel import ScrollPanel, fit_dialog
 from editor.conditions import Condition, options, get_key, label
-TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator', 'Проиграть звук': 'sound', 'Показать картинку': 'show_image', 'Скрыть картинку': 'hide_image', 'Одновременно (И)': 'and'}
+TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator', 'Проиграть звук': 'sound', 'Показать картинку': 'show_image', 'Показать видео': 'show_video', 'Скрыть картинку': 'hide_image', 'Одновременно (И)': 'and'}
 
 def edit(a, p, old=None):
     c = copy.deepcopy(old) if old else dict(type='text', name='', text='')
@@ -74,8 +74,13 @@ def edit(a, p, old=None):
         elif t == 'show_image':
             file_field(0, 'file', 'Картинка или GIF', c.get('file', ''), [('Картинка или GIF', '*.png *.jpg *.jpeg *.gif')])
             field(1, 'transition', 'Появление', 'Плавно' if c.get('transition', 'fade') == 'fade' else 'Сразу', ['Плавно', 'Сразу'])
+            field(2, 'duration', 'Длительность перехода, сек', c.get('duration', 0.5))
+        elif t == 'show_video':
+            file_field(0, 'file', 'Видео MP4/WebM', c.get('file', ''), [('Видео', '*.mp4 *.webm *.avi')])
+            field(1, 'transition', 'Появление', 'Плавно' if c.get('transition', 'fade') == 'fade' else 'Сразу', ['Плавно', 'Сразу'])
+            field(2, 'duration', 'Длительность перехода, сек', c.get('duration', 0.5))
         elif t == 'hide_image':
-            ttk.Label(body, text='Убирает последнюю показанную картинку.').pack(pady=12)
+            ttk.Label(body, text='Убирает последнюю показанную картинку или видео.').pack(pady=12)
         elif t == 'and':
             ttk.Label(body, text='И — действие будет вместе с предыдущим текстом.\n\nПример:\nПоказать текст\nИ\nПроиграть звук', wraplength=500).pack(pady=12)
         else:
@@ -112,11 +117,14 @@ def edit(a, p, old=None):
                 if not 0 <= volume <= 100:
                     raise ValueError('Громкость должна быть от 0 до 100')
                 n.update(file=file, volume=volume)
-            elif t == 'show_image':
+            elif t in ('show_image', 'show_video'):
                 file = values['file'].get().strip()
                 if not file:
-                    raise ValueError('Выберите файл картинки или GIF')
-                n.update(file=file, transition='fade' if values['transition'].get() == 'Плавно' else 'none')
+                    raise ValueError('Выберите файл')
+                duration = float(values['duration'].get())
+                if not 0.05 <= duration <= 5:
+                    raise ValueError('Длительность перехода должна быть от 0,05 до 5 секунд')
+                n.update(file=file, transition='fade' if values['transition'].get() == 'Плавно' else 'none', duration=duration)
             elif t in ('hide_image', 'and'):
                 pass
             else:

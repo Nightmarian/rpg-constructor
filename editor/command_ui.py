@@ -1,10 +1,10 @@
 import copy
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from editor.modal import wait
 from editor.scroll_panel import ScrollPanel, fit_dialog
 from editor.conditions import Condition, options, get_key, label
-TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator'}
+TYPES = {'Показать текст': 'text', 'Показать видео': 'show_video', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator'}
 
 def edit(a, p, old=None):
     c = copy.deepcopy(old) if old else dict(type='text', name='', text='')
@@ -42,6 +42,11 @@ def edit(a, p, old=None):
             text.grid(row=1, column=0, columnspan=2)
             text.insert('1.0', c.get('text', ''))
             extra[0] = text
+        elif t == 'show_video':
+            field(0, 'file', 'Файл видео', c.get('file', ''))
+            ttk.Button(body, text='Выбрать…', command=lambda: choose_file()).grid(row=1, column=1, pady=6)
+            field(2, 'transition', 'Переход', 'Затемнение' if c.get('transition', 'fade') == 'fade' else 'Без эффекта', ['Затемнение', 'Без эффекта'])
+            field(3, 'duration', 'Длительность перехода, сек', c.get('duration', 0.5))
         elif t == 'separator':
             ttk.Label(body, text='Визуальная разделительная строка. Ничего не выполняет.').pack(pady=12)
         elif t in ('switch', 'self_switch'):
@@ -59,6 +64,12 @@ def edit(a, p, old=None):
             cond = Condition(body, p, c.get('condition', {}))
             cond.frame.pack()
             extra[0] = cond
+
+    def choose_file():
+        path = filedialog.askopenfilename(title='Выберите видео', filetypes=[('Видео', '*.mp4 *.avi *.mkv *.mov *.webm'), ('Все файлы', '*.*')], parent=w)
+        if path:
+            values['file'].set(path)
+
     kind.trace_add('write', rebuild)
     rebuild()
 
@@ -68,6 +79,11 @@ def edit(a, p, old=None):
             n = dict(type=t)
             if t in ('text', 'comment'):
                 n.update(name=values['name'].get(), text=extra[0].get('1.0', 'end-1c'))
+            elif t == 'show_video':
+                file = values['file'].get().strip()
+                if not file:
+                    raise ValueError('Выберите файл видео')
+                n.update(file=file, transition='fade' if values['transition'].get() == 'Затемнение' else 'none', duration=float(values['duration'].get()))
             elif t == 'separator':
                 pass
             elif t in ('switch', 'self_switch'):

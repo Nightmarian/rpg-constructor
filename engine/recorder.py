@@ -36,13 +36,10 @@ class Recorder:
         out_dir.mkdir(exist_ok=True)
         self.file = out_dir / (datetime.now().strftime('rec_%Y-%m-%d_%H-%M-%S') + '.mp4')
         w, h = self.app.project['output_size']
-        # запись всего экрана + системного звука, если доступен virtual-audio-capturer
         args = [
             str(ffmpeg), '-y',
             '-f', 'gdigrab', '-framerate', '30', '-offset_x', '0', '-offset_y', '0', '-video_size', f'{w}x{h}', '-i', 'desktop',
-            '-f', 'dshow', '-i', 'audio=virtual-audio-capturer',
             '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-            '-c:a', 'aac', '-b:a', '128k',
             str(self.file),
         ]
         log.info('Recorder args: ' + ' '.join(args))

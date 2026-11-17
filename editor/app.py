@@ -61,6 +61,8 @@ class App:
         build(self)
         from editor.passage_ui import toolbar
         toolbar(self)
+        self.record_button = ttk.Button(self.window, text='Запись: старт', command=self.toggle_recording)
+        self.record_button.pack(side='bottom', fill='x', before=self.window.nametowidget('.!frame'))
         ttk.Label(self.window, textvariable=self.status, anchor='w', padding=5).pack(side='bottom', fill='x')
         body = ttk.Frame(self.window)
         body.pack(fill='both', expand=True)
@@ -99,9 +101,13 @@ class App:
         try:
             result = self.recorder.toggle()
             if result:
+                self.recording = False
+                self.record_button.configure(text='Запись: старт')
                 self.status.set('Запись остановлена: ' + str(result))
             else:
-                self.status.set('Запись началась. F9 — остановить.')
+                self.recording = True
+                self.record_button.configure(text='Запись: стоп')
+                self.status.set('Запись началась. Нажми кнопку ещё раз, чтобы остановить.')
         except Exception as e:
             self.log.error('Recorder error', exc_info=e)
             self.status.set('Ошибка записи: ' + str(e))
@@ -158,8 +164,6 @@ class App:
         self.keys.add(key)
         if first and key == 'Delete' and (not self.playing):
             self.action('delete_event')
-        elif first and key == 'F9':
-            self.toggle_recording()
         elif first and key in ('space', 'Return') and self.playing:
             try:
                 self.world.interact()

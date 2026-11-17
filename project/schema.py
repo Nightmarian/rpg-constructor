@@ -57,6 +57,21 @@ def validate(p):
                 m = p['maps'][c['target']]
                 if any((type(c[k]) is not int for k in ('tx', 'ty'))) or not (0 <= c['tx'] < m['width'] and 0 <= c['ty'] < m['height']) or c.get('direction', 0) not in range(4):
                     raise ValueError('Invalid destination')
+            elif kind == 'sound':
+                if not c.get('file'):
+                    raise ValueError('Missing sound file')
+                volume = c.get('volume', 100)
+                if type(volume) not in (int, float) or not 0 <= volume <= 100:
+                    raise ValueError('Invalid sound volume')
+            elif kind == 'show_image':
+                if not c.get('file'):
+                    raise ValueError('Missing image file')
+                if any(type(c.get(key, 0)) not in (int, float) for key in ('x', 'y', 'scale')):
+                    raise ValueError('Invalid image settings')
+                if c.get('scale', 100) <= 0:
+                    raise ValueError('Invalid image scale')
+            elif kind == 'hide_image':
+                pass
             elif kind not in ('text', 'comment', 'separator'):
                 raise ValueError('Unknown command')
     from project.extra_validation import check

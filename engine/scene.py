@@ -1,7 +1,11 @@
+import os
+import subprocess
+import tempfile
 import threading
 import time
 from queue import Queue, Empty, Full
 import imageio.v2 as imageio
+from imageio_ffmpeg import get_ffmpeg_exe
 from PIL import Image, ImageDraw, ImageFont
 from engine.resources import Resources
 from engine.render_cache import RenderCache
@@ -12,7 +16,7 @@ class VideoBuffer:
 
     def __init__(self, file):
         self.file = file
-        self.queue = Queue(maxsize=90)
+        self.queue = Queue(maxsize=120)
         self.reader = imageio.get_reader(file)
         meta = self.reader.get_meta_data()
         self.fps = float(meta.get('fps', 24) or 24)
@@ -28,7 +32,7 @@ class VideoBuffer:
                         self.queue.put_nowait(image)
                         break
                     except Full:
-                        time.sleep(0.01)
+                        time.sleep(0.005)
         except Exception:
             pass
 
@@ -54,6 +58,7 @@ class Scene:
         self.cache = RenderCache()
         self.image_cache = {}
         self.video_cache = {}
+        self.temp_files = []
         for mid, m in p['maps'].items():
             image = Image.open(m['image']).convert('RGB') if m.get('image') else None
             if image is not None and m.get('image_size') and (list(image.size) != m['image_size']):
@@ -93,11 +98,26 @@ class Scene:
             return frames[-1]
         return frames[0]
 
-    def video(self, item):
-        key = item['file']
+    def scaled_video(self, file, size):
+        key = (file, size)
+        if key in self.video_cache:
+            return self.video_cache[key]
+        handle = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+        handle.close()
+        self.temp_files.append(handle.name)
+        command = [get_ffmpeg_exe(), '-y', '-i', file, '-vf', f'scale={size[0]}:{size[1]}', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '28', handle.name]
+        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError('Не удалось подготовить видео: ' + (result.stderr or '').strip()[-500:])
+        self.video_cache[key] = handle.name
+        return handle.name
+
+    def video(self, item, size):
+        key = (item['file'], size)
         entry = self.video_cache.get(key)
-        if entry is None:
-            entry = {'buffer': VideoBuffer(item['file']), 'last': 0.0, 'frame': None, 'size': None, 'resized': None}
+        if not isinstance(entry, dict):
+            scaled = self.scaled_video(item['file'], size)
+            entry = {'buffer': VideoBuffer(scaled), 'last': 0.0, 'frame': None, 'size': None, 'resized': None}
             self.video_cache[key] = entry
         now = time.monotonic()
         if entry['frame'] is None or now - entry['last'] >= 1 / entry['buffer'].fps:
@@ -107,12 +127,12 @@ class Scene:
                 entry['last'] = now
                 entry['size'] = None
         if entry['frame'] is None:
-            entry['frame'] = Image.new('RGB', (16, 9), (0, 0, 0))
+            entry['frame'] = Image.new('RGB', size, (0, 0, 0))
         return entry['frame'], entry
 
-    def media(self, item):
+    def media(self, item, size):
         if item['type'] == 'show_video':
-            return self.video(item)
+            return self.video(item, size)
         return self.image(item), None
 
     def draw(self, p, state, size=(960, 540), origin=None, view=None, grid=False, marks=False, editor=False):
@@ -159,7 +179,7 @@ class Scene:
             sprite = self.cache.sprite(sprite, (max(1, round(sw * sx)), max(1, round(sh * sy))))
             out.paste(sprite, (round((ax - x - anchor[0]) * sx), round((ay - y - anchor[1]) * sy)), sprite)
         for item in ([] if editor else state.get('images', [])):
-            picture, entry = self.media(item)
+            picture, entry = self.media(item, size)
             factor = min(w / picture.width, h / picture.height)
             pw = max(1, round(picture.width * factor))
             ph = max(1, round(picture.height * factor))

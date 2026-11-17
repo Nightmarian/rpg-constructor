@@ -1,6 +1,8 @@
 import copy
 import math
 import os
+import subprocess
+import tempfile
 import time
 from engine.player import Player
 from engine.npcs import NPCs
@@ -110,26 +112,27 @@ class World:
                 import winsound
                 flags = winsound.SND_FILENAME | winsound.SND_ASYNC
                 winsound.PlaySound(c['file'], flags)
-        except Exception:
-            pass
+        except Exception as exc:
+            print('Sound error:', exc)
 
     def _play_video_audio(self, file):
-        import subprocess
-        import tempfile
         try:
             self._stop_video_audio()
             from imageio_ffmpeg import get_ffmpeg_exe
             ffmpeg = get_ffmpeg_exe()
             handle = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
             handle.close()
-            command = [ffmpeg, '-y', '-i', file, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', handle.name]
-            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            command = [ffmpeg, '-y', '-nostdin', '-i', file, '-vn', '-map', '0:a:0?', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', handle.name]
+            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
+            if result.returncode != 0:
+                raise RuntimeError((result.stderr or '').strip()[-500:])
             self.video_audio = handle.name
             if os.name == 'nt':
                 import winsound
                 winsound.PlaySound(handle.name, winsound.SND_FILENAME | winsound.SND_ASYNC)
-        except Exception:
+        except Exception as exc:
             self.video_audio = None
+            print('Video audio error:', exc)
 
     def _stop_video_audio(self):
         if not self.video_audio:

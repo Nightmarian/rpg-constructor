@@ -4,12 +4,21 @@ from pathlib import Path
 
 def prepare_vlc():
     base = Path(__file__).resolve().parent.parent
-    for name in ('vlc', 'VLC', 'VLCPortable', 'vlc-3.0.21'):
-        folder = base / name
-        if folder.exists():
+    candidates = [
+        base / 'vlc',
+        base / 'VLC',
+        base / 'VLCPortable',
+        base / 'vlc-3.0.21',
+        Path(os.environ.get('PROGRAMFILES', 'C:\\Program Files')) / 'VideoLAN' / 'VLC',
+        Path(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)')) / 'VideoLAN' / 'VLC',
+        Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'VideoLAN' / 'VLC',
+    ]
+    for folder in candidates:
+        if folder.exists() and (folder / 'libvlc.dll').exists():
             if hasattr(os, 'add_dll_directory'):
                 os.add_dll_directory(str(folder))
             os.environ['PATH'] = str(folder) + os.pathsep + os.environ.get('PATH', '')
+            break
     import vlc
     return vlc
 

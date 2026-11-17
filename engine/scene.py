@@ -1,10 +1,48 @@
+import threading
 import time
+from queue import Queue, Empty, Full
 import imageio.v2 as imageio
 from PIL import Image, ImageDraw, ImageFont
 from engine.resources import Resources
 from engine.render_cache import RenderCache
 from engine.text import path
 from project.schema import active_page
+
+class VideoBuffer:
+
+    def __init__(self, file):
+        self.file = file
+        self.queue = Queue(maxsize=90)
+        self.reader = imageio.get_reader(file)
+        meta = self.reader.get_meta_data()
+        self.fps = float(meta.get('fps', 24) or 24)
+        self.thread = threading.Thread(target=self._fill, daemon=True)
+        self.thread.start()
+
+    def _fill(self):
+        try:
+            for frame in self.reader:
+                image = Image.fromarray(frame).convert('RGB')
+                while True:
+                    try:
+                        self.queue.put_nowait(image)
+                        break
+                    except Full:
+                        time.sleep(0.01)
+        except Exception:
+            pass
+
+    def next_frame(self):
+        try:
+            return self.queue.get_nowait()
+        except Empty:
+            return None
+
+    def close(self):
+        try:
+            self.reader.close()
+        except Exception:
+            pass
 
 class Scene:
 
@@ -59,23 +97,15 @@ class Scene:
         key = item['file']
         entry = self.video_cache.get(key)
         if entry is None:
-            reader = imageio.get_reader(item['file'])
-            meta = reader.get_meta_data()
-            fps = meta.get('fps', 24) or 24
-            entry = {'reader': reader, 'fps': float(fps), 'last': 0.0, 'frame': None, 'size': None}
+            entry = {'buffer': VideoBuffer(item['file']), 'last': 0.0, 'frame': None, 'size': None, 'resized': None}
             self.video_cache[key] = entry
         now = time.monotonic()
-        if entry['frame'] is None or now - entry['last'] >= 1 / entry['fps']:
-            try:
-                frame = entry['reader'].get_next_data()
-            except (StopIteration, IndexError):
-                entry['reader'].close()
-                reader = imageio.get_reader(item['file'])
-                entry['reader'] = reader
-                frame = reader.get_next_data()
-            entry['frame'] = Image.fromarray(frame).convert('RGB')
-            entry['last'] = now
-            entry['size'] = None
+        if entry['frame'] is None or now - entry['last'] >= 1 / entry['buffer'].fps:
+            frame = entry['buffer'].next_frame()
+            if frame is not None:
+                entry['frame'] = frame
+                entry['last'] = now
+                entry['size'] = None
         return entry['frame'], entry
 
     def media(self, item):

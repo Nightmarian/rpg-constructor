@@ -52,7 +52,13 @@ class VideoWindow:
         self.on_close = on_close
         self.closed = False
         vlc = prepare_vlc()
-        self.instance = vlc.Instance(['--avcodec-hw=none', '--no-video-title-show'])
+        os.environ['VLC_PLUGIN_PATH'] = str(Path(vlc.__file__).resolve().parent)
+        self.instance = vlc.Instance([
+            '--avcodec-hw=none',
+            '--codec=avcodec',
+            '--vout=direct3d11',
+            '--no-video-title-show',
+        ])
         self.player = self.instance.media_player_new()
         width, height = app.project['output_size']
         self.frame = tk.Frame(app.window, background='black', width=width, height=height)

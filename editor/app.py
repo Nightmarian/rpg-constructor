@@ -47,6 +47,7 @@ class App:
         self.job = None
         self.take = None
         self.samples = []
+        self.record_start = 0.0
         self.keys = set()
         self.zoom = 0.6
         self.cx = 0.0
@@ -106,6 +107,7 @@ class App:
                 self.status.set('Запись остановлена: ' + str(result))
             else:
                 self.recording = True
+                self.record_start = time.perf_counter()
                 self.record_button.configure(text='Запись: стоп')
                 self.status.set('Запись началась. Нажми кнопку ещё раз, чтобы остановить.')
         except Exception as e:

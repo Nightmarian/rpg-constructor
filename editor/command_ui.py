@@ -1,10 +1,11 @@
 import copy
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from editor.modal import wait
 from editor.scroll_panel import ScrollPanel, fit_dialog
 from editor.conditions import Condition, options, get_key, label
-TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator', 'Проиграть звук': 'sound', 'Показать картинку': 'show_image', 'Скрыть картинку': 'hide_image'}
+TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator', 'Проиграть звук': 'sound', 'Показать картинку': 'show_image', 'Скрыть картинку': 'hide_image', 'Одновременно (И)': 'and'}
 
 def edit(a, p, old=None):
     c = copy.deepcopy(old) if old else dict(type='text', name='', text='')
@@ -71,12 +72,12 @@ def edit(a, p, old=None):
             file_field(0, 'file', 'Файл WAV', c.get('file', ''), [('WAV-звук', '*.wav')])
             field(1, 'volume', 'Громкость 0–100', c.get('volume', 100))
         elif t == 'show_image':
-            file_field(0, 'file', 'Файл картинки', c.get('file', ''), [('Картинка', '*.png *.jpg *.jpeg')])
-            field(1, 'x', 'X, пиксели', c.get('x', 0))
-            field(2, 'y', 'Y, пиксели', c.get('y', 0))
-            field(3, 'scale', 'Масштаб, %', c.get('scale', 100))
+            file_field(0, 'file', 'Картинка или GIF', c.get('file', ''), [('Картинка или GIF', '*.png *.jpg *.jpeg *.gif')])
+            field(1, 'transition', 'Появление', 'Плавно' if c.get('transition', 'fade') == 'fade' else 'Сразу', ['Плавно', 'Сразу'])
         elif t == 'hide_image':
             ttk.Label(body, text='Убирает последнюю показанную картинку.').pack(pady=12)
+        elif t == 'and':
+            ttk.Label(body, text='И — действие будет вместе с предыдущим текстом.\n\nПример:\nПоказать текст\nИ\nПроиграть звук', wraplength=500).pack(pady=12)
         else:
             cond = Condition(body, p, c.get('condition', {}))
             cond.frame.pack()
@@ -114,11 +115,9 @@ def edit(a, p, old=None):
             elif t == 'show_image':
                 file = values['file'].get().strip()
                 if not file:
-                    raise ValueError('Выберите файл картинки')
-                n.update(file=file, x=int(values['x'].get()), y=int(values['y'].get()), scale=int(values['scale'].get()))
-                if n['scale'] <= 0:
-                    raise ValueError('Масштаб должен быть больше нуля')
-            elif t == 'hide_image':
+                    raise ValueError('Выберите файл картинки или GIF')
+                n.update(file=file, transition='fade' if values['transition'].get() == 'Плавно' else 'none')
+            elif t in ('hide_image', 'and'):
                 pass
             else:
                 n.update(condition=extra[0].get(), then=copy.deepcopy(c.get('then', [])), **{'else': copy.deepcopy(c.get('else', []))})

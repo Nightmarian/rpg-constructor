@@ -1,5 +1,6 @@
 import copy
 import math
+import time
 from engine.player import Player
 from engine.npcs import NPCs
 from engine.transition import Transition
@@ -20,6 +21,7 @@ class World:
         self.event_key = ''
         self.touch_lock = None
         self.images = []
+        self.dialogue_images = []
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -52,11 +54,15 @@ class World:
 
     def advance(self):
         processed = 0
-        while self.pending and (not self.dialogue) and (not self.transition.active):
+        while self.pending and (not self.dialogue or (self.pending[0].get('type') == 'and' and len(self.pending) > 1 and self.pending[1].get('type') != 'hide_image')) and (not self.transition.active):
             processed += 1
             if processed > 10000:
                 raise RuntimeError('Too many event commands in one interaction')
             c = self.pending.pop(0)
+            if c.get('type') == 'and':
+                if not self.pending or self.pending[0].get('type') not in ('sound', 'show_image', 'hide_image'):
+                    raise ValueError('После И используйте звук, картинку или скрытие картинки')
+                c = self.pending.pop(0)
             kind = c['type']
             if kind == 'text':
                 self.dialogue = pages(self.root, self.project, c.get('name', ''), c.get('text', ''))
@@ -77,10 +83,16 @@ class World:
             elif kind == 'sound':
                 self._play_sound(c)
             elif kind == 'show_image':
-                self.images.append(dict(c))
+                item = dict(c)
+                item['shown_at'] = time.monotonic()
+                self.images.append(item)
+                if self.dialogue:
+                    self.dialogue_images.append(len(self.images) - 1)
             elif kind == 'hide_image':
                 if self.images:
                     self.images.pop()
+                    if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
+                        self.dialogue_images.pop()
 
     def _play_sound(self, c):
         import os
@@ -98,6 +110,10 @@ class World:
         if self.dialogue:
             self.dialogue.pop(0)
             if not self.dialogue:
+                for index in reversed(self.dialogue_images):
+                    if 0 <= index < len(self.images):
+                        self.images.pop(index)
+                self.dialogue_images.clear()
                 self.advance()
             return
         p = self.player

@@ -1,3 +1,4 @@
+import time
 from PIL import Image, ImageDraw, ImageFont
 from engine.resources import Resources
 from engine.render_cache import RenderCache
@@ -26,13 +27,31 @@ class Scene:
         return im.size if im is not None else (m['width'] * m['tile_size'], m['height'] * m['tile_size'])
 
     def image(self, item):
-        key = (item['file'], item.get('scale', 100))
+        key = item['file']
         if key not in self.image_cache:
-            im = Image.open(item['file']).convert('RGBA')
-            scale = max(1, int(round(im.width * item.get('scale', 100) / 100)))
-            height = max(1, int(round(im.height * item.get('scale', 100) / 100)))
-            self.image_cache[key] = im.resize((scale, height), Image.LANCZOS)
-        return self.image_cache[key]
+            source = Image.open(item['file'])
+            if getattr(source, 'is_animated', False):
+                frames = []
+                durations = []
+                for index in range(source.n_frames):
+                    source.seek(index)
+                    frames.append(source.convert('RGBA'))
+                    durations.append(max(0.02, source.info.get('duration', 100) / 1000))
+                self.image_cache[key] = (frames, durations)
+            else:
+                self.image_cache[key] = ([source.convert('RGBA')], [0.0])
+        frames, durations = self.image_cache[key]
+        if len(frames) > 1:
+            elapsed = max(0.0, time.monotonic() - item.get('shown_at', time.monotonic()))
+            total = sum(durations)
+            position = elapsed % total
+            passed = 0.0
+            for frame, duration in zip(frames, durations):
+                passed += duration
+                if position < passed:
+                    return frame
+            return frames[-1]
+        return frames[0]
 
     def draw(self, p, state, size=(960, 540), origin=None, view=None, grid=False, marks=False, editor=False):
         size = tuple(size)
@@ -77,19 +96,29 @@ class Scene:
             sw, sh = sprite.size
             sprite = self.cache.sprite(sprite, (max(1, round(sw * sx)), max(1, round(sh * sy))))
             out.paste(sprite, (round((ax - x - anchor[0]) * sx), round((ay - y - anchor[1]) * sy)), sprite)
-        for item in state.get('images', []):
-            try:
-                picture = self.image(item)
-            except Exception:
-                continue
-            px = round(item.get('x', 0) - x)
-            py = round(item.get('y', 0) - y)
-            out.paste(picture, (px, py), picture)
+        for item in ([] if editor else state.get('images', [])):
+            picture = self.image(item)
+            factor = min(w / picture.width, h / picture.height)
+            pw = max(1, round(picture.width * factor))
+            ph = max(1, round(picture.height * factor))
+            if picture.size != (pw, ph):
+                picture = picture.resize((pw, ph), Image.LANCZOS)
+            px = (w - pw) // 2
+            py = (h - ph) // 2
+            alpha = 1.0
+            if item.get('transition', 'fade') == 'fade':
+                age = max(0.0, time.monotonic() - item.get('shown_at', time.monotonic()))
+                alpha = min(1.0, age / 0.25)
+            if alpha < 1.0:
+                mask = picture.getchannel('A').point(lambda value: int(value * alpha))
+                out.paste(picture, (px, py), mask)
+            else:
+                out.paste(picture, (px, py), picture)
         if state['dialogue'] and (not editor):
             self.dialogue(out, p, state['dialogue'][0])
-        alpha = min(1.0, max(0.0, state.get('fade', 0.0))) if not editor else 0.0
-        if alpha:
-            out = out.point([round(v * (1 - alpha)) for v in range(256)] * 3)
+        fade = min(1.0, max(0.0, state.get('fade', 0.0))) if not editor else 0.0
+        if fade:
+            out = out.point([round(v * (1 - fade)) for v in range(256)] * 3)
         return out
 
     def dialogue(self, image, p, page):

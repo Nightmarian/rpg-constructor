@@ -39,7 +39,7 @@ def validate(p):
     def commands(items, depth=0):
         if depth > 20:
             raise ValueError('Condition nesting exceeds 20')
-        for c in items:
+        for index, c in enumerate(items):
             kind = c['type']
             if kind == 'if':
                 check_condition(c['condition'])
@@ -66,10 +66,13 @@ def validate(p):
             elif kind == 'show_image':
                 if not c.get('file'):
                     raise ValueError('Missing image file')
-                if any(type(c.get(key, 0)) not in (int, float) for key in ('x', 'y', 'scale')):
-                    raise ValueError('Invalid image settings')
-                if c.get('scale', 100) <= 0:
-                    raise ValueError('Invalid image scale')
+                if c.get('transition', 'fade') not in ('fade', 'none'):
+                    raise ValueError('Invalid image transition')
+            elif kind == 'and':
+                if index == 0 or items[index - 1].get('type') not in ('text', 'sound', 'show_image', 'hide_image'):
+                    raise ValueError('AND must follow text or a media action')
+                if index + 1 >= len(items) or items[index + 1].get('type') not in ('sound', 'show_image', 'hide_image'):
+                    raise ValueError('After AND, use sound, show image or hide image')
             elif kind == 'hide_image':
                 pass
             elif kind not in ('text', 'comment', 'separator'):

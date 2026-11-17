@@ -33,13 +33,15 @@ def describe(c, p):
     if kind in ('switch', 'self_switch'):
         return ('Общий: ' + switch(c['flag']) if kind == 'switch' else 'Локальный: ' + c['flag']) + ' → ' + {'on': 'ВКЛ', 'off': 'ВЫКЛ', 'toggle': 'переключить'}[c['operation']]
     if kind == 'transfer':
-        return f'Переход: {c['target']} ({c['tx']}, {c['ty']})'
+        return f"Переход: {c['target']} ({c['tx']}, {c['ty']})"
     if kind == 'sound':
         return 'Звук: ' + c.get('file', '') + ' — ' + str(c.get('volume', 100)) + '%'
     if kind == 'show_image':
-        return 'Картинка: ' + c.get('file', '') + f" ({c.get('x', 0)}, {c.get('y', 0)}, {c.get('scale', 100)}%)"
+        return 'Картинка/GIF: ' + c.get('file', '') + (' — плавно' if c.get('transition', 'fade') == 'fade' else ' — сразу')
     if kind == 'hide_image':
         return 'Скрыть последнюю картинку'
+    if kind == 'and':
+        return 'И — вместе с предыдущим'
     condition = c['condition']
     parts = []
     if condition.get('switch'):
@@ -52,12 +54,15 @@ def build_rows(items, p, width, measure):
     rows = []
 
     def fill(parent, commands, path, depth):
+        previous = None
         for i, c in enumerate(commands):
             key = 'c' + path + str(i)
             kind = c['type']
+            linked = previous == 'and' and kind in ('sound', 'show_image', 'hide_image')
             tag = 'branch' if kind == 'if' else 'note' if kind in ('comment', 'separator') else 'even' if i % 2 == 0 else 'odd'
             available = max(40, width - 44 - depth * 20 - (20 if kind == 'if' else 0) - measure('    '))
-            lines = wrap_text(str(i + 1) + '. ' + describe(c, p), available, measure)
+            prefix = '↳ ' if linked else ''
+            lines = wrap_text(str(i + 1) + '. ' + prefix + describe(c, p), available, measure)
             for part, line in enumerate(lines):
                 rows.append(dict(key=key if part == 0 else key + '_line' + str(part), parent=parent if part == 0 or kind != 'if' else key, text=line if part == 0 else '    ' + line, items=commands, index=i, branch=False, command=c, tag=tag, owner=key))
             if kind == 'if':
@@ -65,6 +70,7 @@ def build_rows(items, p, width, measure):
                     branch_key = key + '_' + branch
                     rows.append(dict(key=branch_key, parent=key, text=title, items=c[branch], index=None, branch=True, command=None, tag='branch', owner=branch_key))
                     fill(branch_key, c[branch], path + str(i) + '_' + branch + '_', depth + 2)
+            previous = kind
     fill('', items, '', 0)
     return rows
 

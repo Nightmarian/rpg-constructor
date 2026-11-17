@@ -39,6 +39,7 @@ def validate(p):
     def commands(items, depth=0):
         if depth > 20:
             raise ValueError('Condition nesting exceeds 20')
+        previous = None
         for index, c in enumerate(items):
             kind = c['type']
             if kind == 'if':
@@ -72,14 +73,15 @@ def validate(p):
                 if type(duration) not in (int, float) or not 0.05 <= duration <= 5:
                     raise ValueError('Invalid media transition duration')
             elif kind == 'and':
-                if index == 0 or items[index - 1].get('type') not in ('text', 'sound', 'show_image', 'show_video', 'hide_image'):
-                    raise ValueError('AND must follow text or a media action')
+                if previous == 'and':
+                    raise ValueError('Нельзя ставить И сразу после И')
                 if index + 1 >= len(items) or items[index + 1].get('type') not in ('sound', 'show_image', 'show_video', 'hide_image'):
-                    raise ValueError('After AND, use sound, image, video or hide')
+                    raise ValueError('После И используйте звук, картинку, видео или скрытие')
             elif kind == 'hide_image':
                 pass
             elif kind not in ('text', 'comment', 'separator'):
                 raise ValueError('Unknown command')
+            previous = kind
     from project.extra_validation import check
     check(p)
     for mid, m in p['maps'].items():

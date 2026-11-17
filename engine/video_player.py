@@ -13,12 +13,22 @@ def prepare_vlc():
         Path(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)')) / 'VideoLAN' / 'VLC',
         Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'VideoLAN' / 'VLC',
     ]
+    vlc_folder = None
     for folder in candidates:
         if folder.exists() and (folder / 'libvlc.dll').exists():
-            if hasattr(os, 'add_dll_directory'):
-                os.add_dll_directory(str(folder))
-            os.environ['PATH'] = str(folder) + os.pathsep + os.environ.get('PATH', '')
+            vlc_folder = folder
             break
+    if vlc_folder:
+        if hasattr(os, 'add_dll_directory'):
+            os.add_dll_directory(str(vlc_folder))
+        os.environ['PATH'] = str(vlc_folder) + os.pathsep + os.environ.get('PATH', '')
+        previous = os.getcwd()
+        os.chdir(vlc_folder)
+        try:
+            import vlc
+        finally:
+            os.chdir(previous)
+        return vlc
     import vlc
     return vlc
 

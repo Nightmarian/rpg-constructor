@@ -50,12 +50,14 @@ class VideoWindow:
         app.window.bind('<space>', lambda event: self.close())
         app.window.bind('<Return>', lambda event: self.close())
         self.frame.focus_set()
+        hwnd = self.frame.winfo_id()
         args = [
             str(self.vlc_exe),
             '--intf=dummy',
             '--play-and-exit',
             '--avcodec-hw=none',
             '--no-video-title-show',
+            f'--drawable-hwnd={hwnd}',
             str(file),
         ]
         log.info('VLC args: ' + ' '.join(args))

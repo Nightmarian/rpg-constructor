@@ -62,7 +62,7 @@ class Scene:
             reader = imageio.get_reader(item['file'])
             meta = reader.get_meta_data()
             fps = meta.get('fps', 24) or 24
-            entry = {'reader': reader, 'fps': float(fps), 'last': 0.0, 'frame': None}
+            entry = {'reader': reader, 'fps': float(fps), 'last': 0.0, 'frame': None, 'size': None}
             self.video_cache[key] = entry
         now = time.monotonic()
         if entry['frame'] is None or now - entry['last'] >= 1 / entry['fps']:
@@ -73,12 +73,15 @@ class Scene:
                 reader = imageio.get_reader(item['file'])
                 entry['reader'] = reader
                 frame = reader.get_next_data()
-            entry['frame'] = Image.fromarray(frame).convert('RGBA')
+            entry['frame'] = Image.fromarray(frame).convert('RGB')
             entry['last'] = now
-        return entry['frame']
+            entry['size'] = None
+        return entry['frame'], entry
 
     def media(self, item):
-        return self.video(item) if item['type'] == 'show_video' else self.image(item)
+        if item['type'] == 'show_video':
+            return self.video(item)
+        return self.image(item), None
 
     def draw(self, p, state, size=(960, 540), origin=None, view=None, grid=False, marks=False, editor=False):
         size = tuple(size)
@@ -124,12 +127,18 @@ class Scene:
             sprite = self.cache.sprite(sprite, (max(1, round(sw * sx)), max(1, round(sh * sy))))
             out.paste(sprite, (round((ax - x - anchor[0]) * sx), round((ay - y - anchor[1]) * sy)), sprite)
         for item in ([] if editor else state.get('images', [])):
-            picture = self.media(item)
+            picture, entry = self.media(item)
             factor = min(w / picture.width, h / picture.height)
             pw = max(1, round(picture.width * factor))
             ph = max(1, round(picture.height * factor))
-            if picture.size != (pw, ph):
-                picture = picture.resize((pw, ph), Image.LANCZOS)
+            if entry is not None and entry.get('size') == (pw, ph) and entry.get('resized') is not None:
+                picture = entry['resized']
+            else:
+                if picture.size != (pw, ph):
+                    picture = picture.resize((pw, ph), Image.BILINEAR if entry is not None else Image.LANCZOS)
+                if entry is not None:
+                    entry['resized'] = picture
+                    entry['size'] = (pw, ph)
             px = (w - pw) // 2
             py = (h - ph) // 2
             alpha = 1.0
@@ -137,10 +146,14 @@ class Scene:
                 age = max(0.0, time.monotonic() - item.get('shown_at', time.monotonic()))
                 alpha = min(1.0, age / max(0.05, item.get('duration', 0.5)))
             if alpha < 1.0:
-                mask = picture.getchannel('A').point(lambda value: int(value * alpha))
-                out.paste(picture, (px, py), mask)
+                if entry is not None:
+                    mask = Image.new('L', picture.size, int(255 * alpha))
+                    out.paste(picture, (px, py), mask)
+                else:
+                    mask = picture.getchannel('A').point(lambda value: int(value * alpha))
+                    out.paste(picture, (px, py), mask)
             else:
-                out.paste(picture, (px, py), picture)
+                out.paste(picture, (px, py))
         if state['dialogue'] and (not editor):
             self.dialogue(out, p, state['dialogue'][0])
         fade = min(1.0, max(0.0, state.get('fade', 0.0))) if not editor else 0.0

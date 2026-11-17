@@ -1,5 +1,6 @@
 import copy
 import math
+import os
 import time
 from engine.player import Player
 from engine.npcs import NPCs
@@ -22,6 +23,7 @@ class World:
         self.touch_lock = None
         self.images = []
         self.dialogue_images = []
+        self.video_audio = None
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -82,7 +84,14 @@ class World:
                     self._transfer(c)
             elif kind == 'sound':
                 self._play_sound(c)
-            elif kind in ('show_image', 'show_video'):
+            elif kind == 'show_video':
+                item = dict(c)
+                item['shown_at'] = time.monotonic()
+                self.images.append(item)
+                if self.dialogue:
+                    self.dialogue_images.append(len(self.images) - 1)
+                self._play_video_audio(c['file'])
+            elif kind == 'show_image':
                 item = dict(c)
                 item['shown_at'] = time.monotonic()
                 self.images.append(item)
@@ -93,9 +102,9 @@ class World:
                     self.images.pop()
                     if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
                         self.dialogue_images.pop()
+                self._stop_video_audio()
 
     def _play_sound(self, c):
-        import os
         try:
             if os.name == 'nt':
                 import winsound
@@ -103,6 +112,36 @@ class World:
                 winsound.PlaySound(c['file'], flags)
         except Exception:
             pass
+
+    def _play_video_audio(self, file):
+        import subprocess
+        import tempfile
+        try:
+            self._stop_video_audio()
+            from imageio_ffmpeg import get_ffmpeg_exe
+            ffmpeg = get_ffmpeg_exe()
+            handle = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            handle.close()
+            command = [ffmpeg, '-y', '-i', file, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', handle.name]
+            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            self.video_audio = handle.name
+            if os.name == 'nt':
+                import winsound
+                winsound.PlaySound(handle.name, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        except Exception:
+            self.video_audio = None
+
+    def _stop_video_audio(self):
+        if not self.video_audio:
+            return
+        try:
+            if os.name == 'nt':
+                import winsound
+                winsound.PlaySound(None, 0)
+            os.remove(self.video_audio)
+        except Exception:
+            pass
+        self.video_audio = None
 
     def interact(self):
         if self.transition.active:
@@ -114,6 +153,7 @@ class World:
                     if 0 <= index < len(self.images):
                         self.images.pop(index)
                 self.dialogue_images.clear()
+                self._stop_video_audio()
                 self.advance()
             return
         p = self.player

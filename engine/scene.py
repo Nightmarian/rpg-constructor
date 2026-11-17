@@ -106,6 +106,8 @@ class Scene:
                 entry['frame'] = frame
                 entry['last'] = now
                 entry['size'] = None
+        if entry['frame'] is None:
+            entry['frame'] = Image.new('RGB', (16, 9), (0, 0, 0))
         return entry['frame'], entry
 
     def media(self, item):

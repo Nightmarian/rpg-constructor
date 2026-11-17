@@ -1,0 +1,29 @@
+2026-11-16 12:16:53,904 INFO RPG Constructor 0.9.5 | Windows-11-10.0.26300-SP0
+2026-11-16 12:16:53,910 INFO DPI Per-Monitor V2 requested
+2026-11-16 12:23:30,015 INFO Capture started
+2026-11-16 12:24:12,353 INFO Capture saved C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\take_20261116_122412_346068.json
+2026-11-16 12:24:19,655 INFO Export started C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\1.mp4 frames=1270 size=(1920, 1080)
+2026-11-16 12:24:25,640 INFO Export completed C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\1.mp4
+2026-11-16 12:26:32,281 INFO Capture started
+2026-11-16 12:26:43,814 INFO Capture saved C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\take_20261116_122643_811969.json
+2026-11-16 12:26:49,424 INFO Export started C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\2.mp4 frames=346 size=(1920, 1080)
+2026-11-16 12:26:51,405 INFO Export completed C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\recordings\2.mp4
+2026-11-16 12:50:56,795 ERROR Tk callback
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\tkinter\__init__.py", line 1968, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\editor\app.py", line 76, in <lambda>
+    self.window.protocol('WM_DELETE_WINDOW', lambda: self.action('quit'))
+                                                     ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\editor\app.py", line 124, in action
+    self.invalidate()
+  File "C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\editor\app.py", line 89, in invalidate
+    self.event_list.refresh()
+  File "C:\Users\Nightmar\Desktop\RPG Constructor\RPG_Constructor_0.9.0_0.9.1_0.9.2_0.9.3_0.9.4_0.9.5\editor\event_list.py", line 31, in refresh
+    self.tree.delete(*self.tree.get_children())
+                      ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\tkinter\ttk.py", line 1198, in get_children
+    self.tk.call(self._w, "children", item or '') or ())
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!frame5.!frame.!treeview"

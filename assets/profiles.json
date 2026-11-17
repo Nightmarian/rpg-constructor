@@ -1,0 +1,142 @@
+{
+  "hero_blue": {
+    "name": "Алекс — синий",
+    "kind": "character",
+    "file": "hero_blue.png",
+    "frame_size": [
+      80,
+      112
+    ],
+    "counts": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "anchor": [
+      40,
+      108
+    ]
+  },
+  "hero_red": {
+    "name": "Мира — красный",
+    "kind": "character",
+    "file": "hero_red.png",
+    "frame_size": [
+      80,
+      112
+    ],
+    "counts": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "anchor": [
+      40,
+      108
+    ]
+  },
+  "npc_green": {
+    "name": "Сосед — зелёный",
+    "kind": "character",
+    "file": "npc_green.png",
+    "frame_size": [
+      80,
+      112
+    ],
+    "counts": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "anchor": [
+      40,
+      108
+    ]
+  },
+  "npc_purple": {
+    "name": "Мастер — фиолетовый",
+    "kind": "character",
+    "file": "npc_purple.png",
+    "frame_size": [
+      80,
+      112
+    ],
+    "counts": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "anchor": [
+      40,
+      108
+    ]
+  },
+  "lever_red": {
+    "name": "Рычаг красный",
+    "kind": "object",
+    "file": "lever_red.png",
+    "frame_size": [
+      96,
+      112
+    ],
+    "counts": [
+      2
+    ],
+    "anchor": [
+      48,
+      106
+    ]
+  },
+  "lever_brass": {
+    "name": "Рычаг латунный",
+    "kind": "object",
+    "file": "lever_brass.png",
+    "frame_size": [
+      96,
+      112
+    ],
+    "counts": [
+      2
+    ],
+    "anchor": [
+      48,
+      106
+    ]
+  },
+  "floor_button": {
+    "name": "Напольная кнопка",
+    "kind": "object",
+    "file": "floor_button.png",
+    "frame_size": [
+      96,
+      112
+    ],
+    "counts": [
+      2
+    ],
+    "anchor": [
+      48,
+      106
+    ]
+  },
+  "door_wood": {
+    "name": "Дверь деревянная",
+    "kind": "object",
+    "file": "door_wood.png",
+    "frame_size": [
+      128,
+      192
+    ],
+    "counts": [
+      2
+    ],
+    "anchor": [
+      64,
+      188
+    ]
+  }
+}

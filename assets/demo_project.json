@@ -1,0 +1,542 @@
+{
+  "format_version": 7,
+  "start_map": "room",
+  "maps": {
+    "room": {
+      "width": 12,
+      "height": 8,
+      "tile_size": 128,
+      "image": "room.png",
+      "image_size": [
+        1536,
+        1024
+      ],
+      "spawn": [
+        570,
+        760
+      ],
+      "blocked": [],
+      "events": [
+        {
+          "id": "Сосед",
+          "name": "Сосед",
+          "x": 4,
+          "y": 4,
+          "pages": [
+            {
+              "name": "Первый разговор",
+              "profile": "npc_green",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "text",
+                  "name": "Сосед",
+                  "text": "Привет! Теперь у события есть страницы состояний."
+                },
+                {
+                  "type": "text",
+                  "name": "Сосед",
+                  "text": "Включи рычаг справа. Дверь откроется. После разговора я запомню, что мы знакомы."
+                },
+                {
+                  "type": "self_switch",
+                  "flag": "A",
+                  "operation": "on"
+                }
+              ],
+              "movement": {
+                "mode": "route",
+                "speed": 90,
+                "delay": 0.5,
+                "repeat": true,
+                "route": [
+                  {
+                    "op": "right"
+                  },
+                  {
+                    "op": "wait",
+                    "seconds": 1
+                  },
+                  {
+                    "op": "left"
+                  },
+                  {
+                    "op": "wait",
+                    "seconds": 1
+                  }
+                ]
+              },
+              "solid": true
+            },
+            {
+              "name": "Уже знакомы",
+              "profile": "npc_green",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {
+                "self": "A",
+                "self_value": true
+              },
+              "commands": [
+                {
+                  "type": "text",
+                  "name": "Сосед",
+                  "text": "Снова привет! Это вторая страница моего события."
+                },
+                {
+                  "type": "if",
+                  "condition": {
+                    "switch": "kitchen_open",
+                    "value": true
+                  },
+                  "then": [
+                    {
+                      "type": "text",
+                      "name": "Сосед",
+                      "text": "Проход на кухню открыт."
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "name": "Сосед",
+                      "text": "Пока заперто. Включи красный рычаг."
+                    }
+                  ]
+                }
+              ],
+              "movement": {
+                "mode": "route",
+                "speed": 90,
+                "delay": 0.5,
+                "repeat": true,
+                "route": [
+                  {
+                    "op": "right"
+                  },
+                  {
+                    "op": "wait",
+                    "seconds": 1
+                  },
+                  {
+                    "op": "left"
+                  },
+                  {
+                    "op": "wait",
+                    "seconds": 1
+                  }
+                ]
+              },
+              "solid": true
+            }
+          ]
+        },
+        {
+          "id": "Рычаг",
+          "name": "Рычаг",
+          "x": 7,
+          "y": 4,
+          "pages": [
+            {
+              "name": "Выключен",
+              "profile": "lever_red",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "switch",
+                  "flag": "kitchen_open",
+                  "operation": "on"
+                }
+              ]
+            },
+            {
+              "name": "Включён",
+              "profile": "lever_red",
+              "frame": 1,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {
+                "switch": "kitchen_open",
+                "value": true
+              },
+              "commands": [
+                {
+                  "type": "switch",
+                  "flag": "kitchen_open",
+                  "operation": "off"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Дверь",
+          "name": "Дверь",
+          "x": 10,
+          "y": 4,
+          "pages": [
+            {
+              "name": "Дверь",
+              "profile": "door_wood",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "if",
+                  "condition": {
+                    "switch": "kitchen_open",
+                    "value": true
+                  },
+                  "then": [
+                    {
+                      "type": "transfer",
+                      "target": "kitchen",
+                      "tx": 2,
+                      "ty": 4,
+                      "direction": 2
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "name": "",
+                      "text": "Заперто. Сначала включи рычаг."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Мира",
+          "name": "Мира",
+          "x": 5,
+          "y": 2,
+          "pages": [
+            {
+              "name": "Мира",
+              "profile": "hero_red",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "text",
+                  "name": "Мира",
+                  "text": "В окне изображения рычага оба состояния находятся в одном PNG. Выбери нужный кадр щелчком."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "kitchen": {
+      "width": 12,
+      "height": 8,
+      "tile_size": 128,
+      "image": "kitchen.png",
+      "image_size": [
+        1536,
+        1024
+      ],
+      "spawn": [
+        440,
+        620
+      ],
+      "blocked": [],
+      "events": [
+        {
+          "id": "Мастер",
+          "name": "Мастер",
+          "x": 6,
+          "y": 4,
+          "pages": [
+            {
+              "name": "Мастер",
+              "profile": "npc_purple",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "text",
+                  "name": "Мастер",
+                  "text": "Общие переключатели связывают объекты. Локальные A–D принадлежат только своему событию."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Выход",
+          "name": "Выход",
+          "x": 1,
+          "y": 4,
+          "pages": [
+            {
+              "name": "Выход",
+              "profile": "none",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "transfer",
+                  "target": "room",
+                  "tx": 9,
+                  "ty": 4,
+                  "direction": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Кнопка",
+          "name": "Кнопка",
+          "x": 9,
+          "y": 5,
+          "pages": [
+            {
+              "name": "Выкл",
+              "profile": "floor_button",
+              "frame": 0,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {},
+              "commands": [
+                {
+                  "type": "self_switch",
+                  "flag": "A",
+                  "operation": "on"
+                }
+              ]
+            },
+            {
+              "name": "Вкл",
+              "profile": "floor_button",
+              "frame": 1,
+              "direction": 0,
+              "trigger": "action",
+              "condition": {
+                "self": "A",
+                "self_value": true
+              },
+              "commands": [
+                {
+                  "type": "self_switch",
+                  "flag": "A",
+                  "operation": "off"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "training": {
+      "width": 12,
+      "height": 8,
+      "tile_size": 128,
+      "image": "training.png",
+      "image_size": [
+        1536,
+        1024
+      ],
+      "spawn": [
+        600,
+        700
+      ],
+      "blocked": [
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          8,
+          2
+        ]
+      ],
+      "events": [],
+      "edges": []
+    }
+  },
+  "profiles": {
+    "hero_blue": {
+      "name": "Алекс — синий",
+      "kind": "character",
+      "file": "hero_blue.png",
+      "frame_size": [
+        80,
+        112
+      ],
+      "counts": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "anchor": [
+        40,
+        108
+      ]
+    },
+    "hero_red": {
+      "name": "Мира — красный",
+      "kind": "character",
+      "file": "hero_red.png",
+      "frame_size": [
+        80,
+        112
+      ],
+      "counts": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "anchor": [
+        40,
+        108
+      ]
+    },
+    "npc_green": {
+      "name": "Сосед — зелёный",
+      "kind": "character",
+      "file": "npc_green.png",
+      "frame_size": [
+        80,
+        112
+      ],
+      "counts": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "anchor": [
+        40,
+        108
+      ]
+    },
+    "npc_purple": {
+      "name": "Мастер — фиолетовый",
+      "kind": "character",
+      "file": "npc_purple.png",
+      "frame_size": [
+        80,
+        112
+      ],
+      "counts": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "anchor": [
+        40,
+        108
+      ]
+    },
+    "lever_red": {
+      "name": "Рычаг красный",
+      "kind": "object",
+      "file": "lever_red.png",
+      "frame_size": [
+        96,
+        112
+      ],
+      "counts": [
+        2
+      ],
+      "anchor": [
+        48,
+        106
+      ]
+    },
+    "lever_brass": {
+      "name": "Рычаг латунный",
+      "kind": "object",
+      "file": "lever_brass.png",
+      "frame_size": [
+        96,
+        112
+      ],
+      "counts": [
+        2
+      ],
+      "anchor": [
+        48,
+        106
+      ]
+    },
+    "floor_button": {
+      "name": "Напольная кнопка",
+      "kind": "object",
+      "file": "floor_button.png",
+      "frame_size": [
+        96,
+        112
+      ],
+      "counts": [
+        2
+      ],
+      "anchor": [
+        48,
+        106
+      ]
+    },
+    "door_wood": {
+      "name": "Дверь деревянная",
+      "kind": "object",
+      "file": "door_wood.png",
+      "frame_size": [
+        128,
+        192
+      ],
+      "counts": [
+        2
+      ],
+      "anchor": [
+        64,
+        188
+      ]
+    }
+  },
+  "hero": "hero_blue",
+  "switches": {
+    "kitchen_open": "Доступ на кухню"
+  },
+  "speed": 240,
+  "animation_fps": 10,
+  "camera_zoom": 0.8,
+  "font": "",
+  "font_size": 22,
+  "preview": "native",
+  "output_size": [
+    1920,
+    1080
+  ]
+}

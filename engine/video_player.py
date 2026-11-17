@@ -52,8 +52,7 @@ class VideoWindow:
         self.on_close = on_close
         self.closed = False
         vlc = prepare_vlc()
-        # отключаем аппаратное ускорение, чтобы избежать ошибок D3D11VA
-        self.instance = vlc.Instance('--avcodec-hw=none')
+        self.instance = vlc.Instance(['--avcodec-hw=none', '--no-video-title-show'])
         self.player = self.instance.media_player_new()
         width, height = app.project['output_size']
         self.frame = tk.Frame(app.window, background='black', width=width, height=height)
@@ -69,7 +68,7 @@ class VideoWindow:
             self.player.set_hwnd(self.frame.winfo_id())
         media = self.instance.media_new(str(file))
         self.player.set_media(media)
-        self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, lambda event: app.root.after(0, self.close))
+        self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, lambda event: app.window.after(0, self.close))
         self.player.play()
 
     def close(self):
@@ -94,4 +93,4 @@ class VideoWindow:
             self.on_close = None
             if callback:
                 callback()
-        self.app.root.after(100, destroy)
+        self.app.window.after(100, destroy)

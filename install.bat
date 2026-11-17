@@ -1,15 +1,39 @@
 @echo off
-cd /d "%~dp0"
-py -3.12 -m venv .venv
-if errorlevel 1 goto fail
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-if errorlevel 1 goto fail
-.venv\Scripts\python.exe -c "import tkinter; import PIL; import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
-if errorlevel 1 goto fail
-echo Installation completed.
+setlocal
+
+echo === RPG Constructor setup ===
+
+where python >nul 2>nul
+if errorlevel 1 (
+  echo Python not found. Install Python 3.12 first.
+  pause
+  exit /b 1
+)
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+where ffmpeg >nul 2>nul
+if errorlevel 1 (
+  echo ffmpeg not found. Installing via winget...
+  winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
+) else (
+  echo ffmpeg found.
+)
+
+where vlc >nul 2>nul
+if errorlevel 1 (
+  if not exist "%ProgramFiles%\VideoLAN\VLC\vlc.exe" (
+    echo VLC not found. Installing via winget...
+    winget install --id VideoLAN.VLC -e --accept-source-agreements --accept-package-agreements
+  ) else (
+    echo VLC found.
+  )
+) else (
+  echo VLC found.
+)
+
+if not exist "recordings" mkdir recordings
+
+echo Setup complete.
 pause
-exit /b 0
-:fail
-echo Installation failed. Copy console output.
-pause
-exit /b 1

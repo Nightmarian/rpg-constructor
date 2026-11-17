@@ -52,15 +52,15 @@ class VideoWindow:
         self.on_close = on_close
         self.closed = False
         vlc = prepare_vlc()
-        self.instance = vlc.Instance()
+        # отключаем аппаратное ускорение, чтобы избежать ошибок D3D11VA
+        self.instance = vlc.Instance('--avcodec-hw=none')
         self.player = self.instance.media_player_new()
         width, height = app.project['output_size']
-        # встроенное видео поверх игрового окна
         self.frame = tk.Frame(app.window, background='black', width=width, height=height)
         self.frame.place(x=0, y=0, relwidth=1, relheight=1)
         self.frame.lift()
         self.frame.update_idletasks()
-        self.window = self.frame  # для совместимости с прежним кодом
+        self.window = self.frame
         app.window.protocol('WM_DELETE_WINDOW', self.close)
         app.window.bind('<space>', lambda event: self.close())
         app.window.bind('<Return>', lambda event: self.close())
@@ -81,10 +81,17 @@ class VideoWindow:
         except Exception:
             pass
         try:
-            self.frame.destroy()
+            if hasattr(self.player, 'set_hwnd'):
+                self.player.set_hwnd(0)
         except Exception:
             pass
-        callback = self.on_close
-        self.on_close = None
-        if callback:
-            callback()
+        def destroy():
+            try:
+                self.frame.destroy()
+            except Exception:
+                pass
+            callback = self.on_close
+            self.on_close = None
+            if callback:
+                callback()
+        self.app.root.after(100, destroy)

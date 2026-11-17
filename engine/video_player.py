@@ -50,20 +50,16 @@ class VideoWindow:
         app.window.bind('<space>', lambda event: self.close())
         app.window.bind('<Return>', lambda event: self.close())
         self.frame.focus_set()
-        hwnd = self.frame.winfo_id()
         args = [
             str(self.vlc_exe),
-            '--intf', 'dummy',
-            '--extraintf', '',
+            '--intf=dummy',
             '--play-and-exit',
             '--avcodec-hw=none',
             '--no-video-title-show',
-            '--embedded-video',
-            f'--hwnd={hwnd}',
             str(file),
         ]
         log.info('VLC args: ' + ' '.join(args))
-        self.process = subprocess.Popen(args, cwd=str(self.vlc_exe.parent))
+        self.process = subprocess.Popen(args, cwd=str(self.vlc_exe.parent), creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
         self.app.window.after(200, self.check)
 
     def check(self):

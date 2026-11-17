@@ -11,6 +11,7 @@ if errorlevel 1 (
 )
 
 python -m pip install --upgrade pip
+python -m pip install imageio imageio-ffmpeg
 python -m pip install -r requirements.txt
 
 where ffmpeg >nul 2>nul

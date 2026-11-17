@@ -9,7 +9,6 @@ from engine.world import World
 from engine.scene import Scene
 from engine.player import Player
 from engine.video_player import VideoWindow
-from engine.recorder import Recorder
 from support.keys import normalize
 from editor.menus import build
 from editor.actions import perform
@@ -33,7 +32,6 @@ class App:
         self.world = World(root, self.project)
         self.world.video_callback = self.play_video
         self.video_window = None
-        self.recorder = Recorder(self)
         self.path = root / 'projects' / 'project.json'
         self.grid = tk.BooleanVar(value=True)
         self.marks = tk.BooleanVar(value=True)
@@ -62,8 +60,6 @@ class App:
         build(self)
         from editor.passage_ui import toolbar
         toolbar(self)
-        self.record_button = ttk.Button(self.window, text='Запись: старт', command=self.toggle_recording)
-        self.record_button.pack(side='bottom', fill='x', before=self.window.nametowidget('.!frame'))
         ttk.Label(self.window, textvariable=self.status, anchor='w', padding=5).pack(side='bottom', fill='x')
         body = ttk.Frame(self.window)
         body.pack(fill='both', expand=True)
@@ -97,22 +93,6 @@ class App:
                 pass
             self.video_window = None
         self.video_window = VideoWindow(self, file, on_close=lambda: self.world.video_finished())
-
-    def toggle_recording(self):
-        try:
-            result = self.recorder.toggle()
-            if result:
-                self.recording = False
-                self.record_button.configure(text='Запись: старт')
-                self.status.set('Запись остановлена: ' + str(result))
-            else:
-                self.recording = True
-                self.record_start = time.perf_counter()
-                self.record_button.configure(text='Запись: стоп')
-                self.status.set('Запись началась. Нажми кнопку ещё раз, чтобы остановить.')
-        except Exception as e:
-            self.log.error('Recorder error', exc_info=e)
-            self.status.set('Ошибка записи: ' + str(e))
 
     def invalidate(self):
         self.revision += 1

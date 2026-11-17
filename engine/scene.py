@@ -105,7 +105,7 @@ class Scene:
         handle = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
         handle.close()
         self.temp_files.append(handle.name)
-        command = [get_ffmpeg_exe(), '-y', '-i', file, '-vf', f'scale={size[0]}:{size[1]}', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '28', handle.name]
+        command = [get_ffmpeg_exe(), '-y', '-i', file, '-vf', f'scale={size[0]}:{size[1]}', '-an', '-c:v', 'mpeg4', '-q:v', '5', handle.name]
         result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
         if result.returncode != 0:
             raise RuntimeError('Не удалось подготовить видео: ' + (result.stderr or '').strip()[-500:])

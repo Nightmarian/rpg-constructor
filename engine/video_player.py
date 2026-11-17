@@ -55,18 +55,18 @@ class VideoWindow:
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
         width, height = app.project['output_size']
-        self.window = tk.Toplevel(app.window)
-        self.window.title('Видео')
-        self.window.geometry(f'{width}x{height}')
-        self.window.resizable(False, False)
-        self.window.configure(background='black')
-        self.window.protocol('WM_DELETE_WINDOW', self.close)
-        self.window.bind('<space>', lambda event: self.close())
-        self.window.bind('<Return>', lambda event: self.close())
-        self.window.focus_set()
-        self.window.update_idletasks()
+        # встроенное видео поверх игрового окна
+        self.frame = tk.Frame(app.window, background='black', width=width, height=height)
+        self.frame.place(x=0, y=0, relwidth=1, relheight=1)
+        self.frame.lift()
+        self.frame.update_idletasks()
+        self.window = self.frame  # для совместимости с прежним кодом
+        app.window.protocol('WM_DELETE_WINDOW', self.close)
+        app.window.bind('<space>', lambda event: self.close())
+        app.window.bind('<Return>', lambda event: self.close())
+        self.frame.focus_set()
         if hasattr(self.player, 'set_hwnd'):
-            self.player.set_hwnd(self.window.winfo_id())
+            self.player.set_hwnd(self.frame.winfo_id())
         media = self.instance.media_new(str(file))
         self.player.set_media(media)
         self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, lambda event: app.root.after(0, self.close))
@@ -81,7 +81,7 @@ class VideoWindow:
         except Exception:
             pass
         try:
-            self.window.destroy()
+            self.frame.destroy()
         except Exception:
             pass
         callback = self.on_close

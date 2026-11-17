@@ -25,6 +25,7 @@ class World:
         self.touch_lock = None
         self.images = []
         self.dialogue_images = []
+        self.video_callback = None
         self.video_audio = None
         self.npcs = NPCs(self)
         self.transition = Transition()
@@ -87,12 +88,15 @@ class World:
             elif kind == 'sound':
                 self._play_sound(c)
             elif kind == 'show_video':
-                item = dict(c)
-                item['shown_at'] = time.monotonic()
-                self.images.append(item)
-                if self.dialogue:
-                    self.dialogue_images.append(len(self.images) - 1)
-                self._play_video_audio(c['file'])
+                if self.video_callback:
+                    self.video_callback(c['file'])
+                else:
+                    item = dict(c)
+                    item['shown_at'] = time.monotonic()
+                    self.images.append(item)
+                    if self.dialogue:
+                        self.dialogue_images.append(len(self.images) - 1)
+                    self._play_video_audio(c['file'])
             elif kind == 'show_image':
                 item = dict(c)
                 item['shown_at'] = time.monotonic()
@@ -105,6 +109,14 @@ class World:
                     if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
                         self.dialogue_images.pop()
                 self._stop_video_audio()
+
+    def video_finished(self):
+        for index in range(len(self.images) - 1, -1, -1):
+            if self.images[index].get('type') == 'show_video':
+                self.images.pop(index)
+                break
+        self._stop_video_audio()
+        self.advance()
 
     def _play_sound(self, c):
         try:

@@ -8,6 +8,7 @@ from project.schema import active_page
 from engine.world import World
 from engine.scene import Scene
 from engine.player import Player
+from engine.video_player import VideoWindow
 from support.keys import normalize
 from editor.menus import build
 from editor.actions import perform
@@ -29,6 +30,8 @@ class App:
         self.project = storage.load(root / 'assets' / 'demo_project.json', root)
         self.scene = Scene(root, self.project)
         self.world = World(root, self.project)
+        self.world.video_callback = self.play_video
+        self.video_window = None
         self.path = root / 'projects' / 'project.json'
         self.grid = tk.BooleanVar(value=True)
         self.marks = tk.BooleanVar(value=True)
@@ -80,6 +83,15 @@ class App:
         from editor.theme import ThemeManager
         self.theme = ThemeManager(self)
         self.theme.install()
+
+    def play_video(self, file):
+        if self.video_window is not None:
+            try:
+                self.video_window.close()
+            except Exception:
+                pass
+            self.video_window = None
+        self.video_window = VideoWindow(self, file, on_close=lambda: self.world.video_finished())
 
     def invalidate(self):
         self.revision += 1

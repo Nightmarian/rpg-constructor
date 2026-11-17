@@ -12,6 +12,7 @@ class Scene:
         self.backgrounds = {}
         self.fonts = {}
         self.cache = RenderCache()
+        self.image_cache = {}
         for mid, m in p['maps'].items():
             image = Image.open(m['image']).convert('RGB') if m.get('image') else None
             if image is not None and m.get('image_size') and (list(image.size) != m['image_size']):
@@ -23,6 +24,15 @@ class Scene:
         im = self.backgrounds[mid]
         m = p['maps'][mid]
         return im.size if im is not None else (m['width'] * m['tile_size'], m['height'] * m['tile_size'])
+
+    def image(self, item):
+        key = (item['file'], item.get('scale', 100))
+        if key not in self.image_cache:
+            im = Image.open(item['file']).convert('RGBA')
+            scale = max(1, int(round(im.width * item.get('scale', 100) / 100)))
+            height = max(1, int(round(im.height * item.get('scale', 100) / 100)))
+            self.image_cache[key] = im.resize((scale, height), Image.LANCZOS)
+        return self.image_cache[key]
 
     def draw(self, p, state, size=(960, 540), origin=None, view=None, grid=False, marks=False, editor=False):
         size = tuple(size)
@@ -67,6 +77,14 @@ class Scene:
             sw, sh = sprite.size
             sprite = self.cache.sprite(sprite, (max(1, round(sw * sx)), max(1, round(sh * sy))))
             out.paste(sprite, (round((ax - x - anchor[0]) * sx), round((ay - y - anchor[1]) * sy)), sprite)
+        for item in state.get('images', []):
+            try:
+                picture = self.image(item)
+            except Exception:
+                continue
+            px = round(item.get('x', 0) - x)
+            py = round(item.get('y', 0) - y)
+            out.paste(picture, (px, py), picture)
         if state['dialogue'] and (not editor):
             self.dialogue(out, p, state['dialogue'][0])
         alpha = min(1.0, max(0.0, state.get('fade', 0.0))) if not editor else 0.0

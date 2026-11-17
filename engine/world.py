@@ -19,6 +19,7 @@ class World:
         self.pending = []
         self.event_key = ''
         self.touch_lock = None
+        self.images = []
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -27,10 +28,10 @@ class World:
         return self.project['maps'][self.map_id]
 
     def snapshot(self, t):
-        return dict(t=t, map_id=self.map_id, player=self.player.state(), flags=copy.deepcopy(self.flags), self_flags=copy.deepcopy(self.self_flags), dialogue=copy.deepcopy(self.dialogue), actors=self.npcs.snapshot(), fade=self.transition.alpha)
+        return dict(t=t, map_id=self.map_id, player=self.player.state(), flags=copy.deepcopy(self.flags), self_flags=copy.deepcopy(self.self_flags), dialogue=copy.deepcopy(self.dialogue), actors=self.npcs.snapshot(), fade=self.transition.alpha, images=copy.deepcopy(self.images))
 
     def view_state(self):
-        return dict(map_id=self.map_id, player=self.player.state(), flags=self.flags, self_flags=self.self_flags, dialogue=self.dialogue, actors=self.npcs.snapshot(), fade=self.transition.alpha)
+        return dict(map_id=self.map_id, player=self.player.state(), flags=self.flags, self_flags=self.self_flags, dialogue=self.dialogue, actors=self.npcs.snapshot(), fade=self.transition.alpha, images=self.images)
 
     def _transfer(self, c):
         self.map_id = c['target']
@@ -73,6 +74,23 @@ class World:
                     self.transition.start(c, duration)
                 else:
                     self._transfer(c)
+            elif kind == 'sound':
+                self._play_sound(c)
+            elif kind == 'show_image':
+                self.images.append(dict(c))
+            elif kind == 'hide_image':
+                if self.images:
+                    self.images.pop()
+
+    def _play_sound(self, c):
+        import os
+        try:
+            if os.name == 'nt':
+                import winsound
+                flags = winsound.SND_FILENAME | winsound.SND_ASYNC
+                winsound.PlaySound(c['file'], flags)
+        except Exception:
+            pass
 
     def interact(self):
         if self.transition.active:

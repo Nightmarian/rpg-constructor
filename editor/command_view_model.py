@@ -34,6 +34,12 @@ def describe(c, p):
         return ('Общий: ' + switch(c['flag']) if kind == 'switch' else 'Локальный: ' + c['flag']) + ' → ' + {'on': 'ВКЛ', 'off': 'ВЫКЛ', 'toggle': 'переключить'}[c['operation']]
     if kind == 'transfer':
         return f'Переход: {c['target']} ({c['tx']}, {c['ty']})'
+    if kind == 'sound':
+        return 'Звук: ' + c.get('file', '') + ' — ' + str(c.get('volume', 100)) + '%'
+    if kind == 'show_image':
+        return 'Картинка: ' + c.get('file', '') + f" ({c.get('x', 0)}, {c.get('y', 0)}, {c.get('scale', 100)}%)"
+    if kind == 'hide_image':
+        return 'Скрыть последнюю картинку'
     condition = c['condition']
     parts = []
     if condition.get('switch'):

@@ -1,10 +1,10 @@
 import copy
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from editor.modal import wait
 from editor.scroll_panel import ScrollPanel, fit_dialog
 from editor.conditions import Condition, options, get_key, label
-TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator'}
+TYPES = {'Показать текст': 'text', 'Общий переключатель': 'switch', 'Локальный переключатель': 'self_switch', 'Перейти на локацию': 'transfer', 'Если / Иначе': 'if', 'Комментарий': 'comment', 'Разделитель': 'separator', 'Проиграть звук': 'sound', 'Показать картинку': 'show_image', 'Скрыть картинку': 'hide_image'}
 
 def edit(a, p, old=None):
     c = copy.deepcopy(old) if old else dict(type='text', name='', text='')
@@ -28,6 +28,18 @@ def edit(a, p, old=None):
         values[key] = var
         widget = ttk.Combobox(body, textvariable=var, values=choices, state='readonly', width=38) if choices is not None else ttk.Entry(body, textvariable=var, width=41)
         widget.grid(row=row, column=1, pady=6)
+        return widget
+
+    def file_field(row, key, text, value, patterns):
+        ttk.Label(body, text=text).grid(row=row, column=0, sticky='w', pady=6)
+        var = tk.StringVar(value=str(value))
+        values[key] = var
+        ttk.Entry(body, textvariable=var, width=41).grid(row=row, column=1, pady=6)
+        def choose():
+            name = filedialog.askopenfilename(parent=w, filetypes=patterns)
+            if name:
+                var.set(name)
+        ttk.Button(body, text='Выбрать…', command=choose).grid(row=row, column=2, padx=4)
 
     def rebuild(*_):
         for child in body.winfo_children():
@@ -55,6 +67,16 @@ def edit(a, p, old=None):
             field(2, 'ty', 'Клетка Y', c.get('ty', 1))
             field(3, 'direction', 'Направление 0↓1←2→3↑', c.get('direction', 0), ['0', '1', '2', '3'])
             field(4, 'fade', 'Переход', 'Затемнение' if c.get('fade', True) else 'Без эффекта', ['Затемнение', 'Без эффекта'])
+        elif t == 'sound':
+            file_field(0, 'file', 'Файл WAV', c.get('file', ''), [('WAV-звук', '*.wav')])
+            field(1, 'volume', 'Громкость 0–100', c.get('volume', 100))
+        elif t == 'show_image':
+            file_field(0, 'file', 'Файл картинки', c.get('file', ''), [('Картинка', '*.png *.jpg *.jpeg')])
+            field(1, 'x', 'X, пиксели', c.get('x', 0))
+            field(2, 'y', 'Y, пиксели', c.get('y', 0))
+            field(3, 'scale', 'Масштаб, %', c.get('scale', 100))
+        elif t == 'hide_image':
+            ttk.Label(body, text='Убирает последнюю показанную картинку.').pack(pady=12)
         else:
             cond = Condition(body, p, c.get('condition', {}))
             cond.frame.pack()
@@ -81,6 +103,23 @@ def edit(a, p, old=None):
                 m = p['maps'][n['target']]
                 if not (0 <= n['tx'] < m['width'] and 0 <= n['ty'] < m['height']):
                     raise ValueError('Точка вне карты')
+            elif t == 'sound':
+                file = values['file'].get().strip()
+                if not file:
+                    raise ValueError('Выберите WAV-файл')
+                volume = int(values['volume'].get())
+                if not 0 <= volume <= 100:
+                    raise ValueError('Громкость должна быть от 0 до 100')
+                n.update(file=file, volume=volume)
+            elif t == 'show_image':
+                file = values['file'].get().strip()
+                if not file:
+                    raise ValueError('Выберите файл картинки')
+                n.update(file=file, x=int(values['x'].get()), y=int(values['y'].get()), scale=int(values['scale'].get()))
+                if n['scale'] <= 0:
+                    raise ValueError('Масштаб должен быть больше нуля')
+            elif t == 'hide_image':
+                pass
             else:
                 n.update(condition=extra[0].get(), then=copy.deepcopy(c.get('then', [])), **{'else': copy.deepcopy(c.get('else', []))})
             result[0] = n

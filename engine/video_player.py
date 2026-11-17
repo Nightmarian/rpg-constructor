@@ -50,14 +50,12 @@ class VideoWindow:
         app.window.bind('<space>', lambda event: self.close())
         app.window.bind('<Return>', lambda event: self.close())
         self.frame.focus_set()
-        hwnd = self.frame.winfo_id()
         args = [
             str(self.vlc_exe),
             '--intf=dummy',
             '--play-and-exit',
             '--avcodec-hw=none',
             '--no-video-title-show',
-            f'--drawable-hwnd={hwnd}',
             str(file),
         ]
         log.info('VLC args: ' + ' '.join(args))
@@ -78,7 +76,7 @@ class VideoWindow:
         self.closed = True
         try:
             if self.process.poll() is None:
-                self.process.terminate()
+                self.process.kill()
         except Exception:
             pass
         def destroy():
@@ -90,4 +88,4 @@ class VideoWindow:
             self.on_close = None
             if callback:
                 callback()
-        self.app.window.after(100, destroy)
+        self.app.window.after(50, destroy)

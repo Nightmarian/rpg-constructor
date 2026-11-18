@@ -2,7 +2,7 @@ import copy
 import json
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from datetime import datetime
 from pathlib import Path
 from PIL import ImageTk
@@ -34,6 +34,8 @@ class GameWindow:
         self.record_button.pack(side='right', padx=3)
         self.stop_button = ttk.Button(bar, text='Стоп', command=self.stop_record, state='disabled')
         self.stop_button.pack(side='right', padx=3)
+        self.mp4_button = ttk.Button(bar, text='MP4', command=self.export_mp4, state='disabled')
+        self.mp4_button.pack(side='right', padx=3)
         self.canvas.focus_set()
         self.window.protocol('WM_DELETE_WINDOW', self.close)
         self.window.bind('<KeyPress>', self.key_down)
@@ -64,6 +66,7 @@ class GameWindow:
         self.recording = True
         self.record_button.config(state='disabled')
         self.stop_button.config(state='normal')
+        self.mp4_button.config(state='disabled')
         self.a.log.info('Game capture started')
 
     def stop_record(self):
@@ -77,8 +80,21 @@ class GameWindow:
         folder.mkdir(exist_ok=True)
         path = folder / datetime.now().strftime('take_%Y%m%d_%H%M%S_%f.json')
         path.write_text(json.dumps(dict(take_version=4, project=self.a.project, samples=self.samples), ensure_ascii=False), encoding='utf-8')
-        self.status.set('Дубль готов: ' + path.name)
+        self.a.take = (copy.deepcopy(self.samples), copy.deepcopy(self.a.project), copy.copy(self.a.scene))
+        self.mp4_button.config(state='normal')
+        self.status.set('Дубль готов: ' + path.name + ' | Нажми MP4')
         self.a.log.info('Game capture saved %s', path)
+
+    def export_mp4(self):
+        if not self.a.take:
+            messagebox.showinfo('MP4', 'Сначала сделай запись и нажми «Стоп».', parent=self.window)
+            return
+        try:
+            from editor.export_ui import start
+            start(self.a)
+        except Exception:
+            self.a.log.exception('MP4 export')
+            messagebox.showerror('MP4', 'Ошибка экспорта. Смотри журнал.', parent=self.window)
 
     def close(self):
         if self.recording:
@@ -106,7 +122,7 @@ class GameWindow:
             self.photo = ImageTk.PhotoImage(frame)
             self.canvas.itemconfig(self.item, image=self.photo)
             if self.recording:
-                self.status.set(f'ЗАПИСЬ {started - self.record_start:.1f} с | Стоп → дубль')
+                self.status.set(f'ЗАПИСЬ {started - self.record_start:.1f} с | Стоп → MP4')
         except Exception:
             self.a.log.exception('Game window')
             self.close()

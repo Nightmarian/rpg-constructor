@@ -14,6 +14,7 @@ from editor.actions import perform
 from editor.event_ui import show as edit_event
 from editor.templates import lever
 
+
 class App:
 
     def __init__(self, root, log, records, log_path):
@@ -56,6 +57,7 @@ class App:
         build(self)
         from editor.passage_ui import toolbar
         toolbar(self)
+        ttk.Button(self.window, text='Играть', command=self.open_game).pack(side='bottom', anchor='e', padx=8, pady=4)
         ttk.Label(self.window, textvariable=self.status, anchor='w', padding=5).pack(side='bottom', fill='x')
         body = ttk.Frame(self.window)
         body.pack(fill='both', expand=True)
@@ -80,6 +82,10 @@ class App:
         from editor.theme import ThemeManager
         self.theme = ThemeManager(self)
         self.theme.install()
+
+    def open_game(self):
+        from editor.game_window import GameWindow
+        GameWindow(self)
 
     def invalidate(self):
         self.revision += 1

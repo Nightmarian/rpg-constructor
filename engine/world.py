@@ -25,6 +25,7 @@ class World:
         self.touch_lock = None
         self.images = []
         self.dialogue_images = []
+        self.pending_hide = False
         self.video_callback = None
         self.video_audio = None
         self.npcs = NPCs(self)
@@ -58,6 +59,12 @@ class World:
             self.advance()
 
     def advance(self):
+        if self.pending_hide:
+            self.pending_hide = False
+            if self.images:
+                self.images.pop()
+            if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
+                self.dialogue_images.pop()
         processed = 0
         while self.pending and (not self.dialogue or (self.pending[0].get('type') == 'and' and len(self.pending) > 1 and self.pending[1].get('type') != 'hide_image')) and (not self.transition.active):
             processed += 1
@@ -104,11 +111,7 @@ class World:
                 if self.dialogue:
                     self.dialogue_images.append(len(self.images) - 1)
             elif kind == 'hide_image':
-                if self.images:
-                    self.images.pop()
-                    if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
-                        self.dialogue_images.pop()
-                self._stop_video_audio()
+                self.pending_hide = True
 
     def video_finished(self):
         for index in range(len(self.images) - 1, -1, -1):

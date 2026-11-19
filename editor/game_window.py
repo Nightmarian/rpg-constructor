@@ -41,7 +41,17 @@ class GameWindow:
         self.window.bind('<KeyPress>', self.key_down)
         self.window.bind('<KeyRelease>', lambda e: self.keys.discard(normalize(e.keysym, e.keycode)))
         self.window.bind('<FocusOut>', lambda e: self.keys.clear())
+        self.a.world.video_callback = self.play_video
         self.window.after(30, self.tick)
+
+    def play_video(self, file):
+        try:
+            from engine.video_player import VideoWindow
+            VideoWindow(self.a, file, self.a.world.video_finished, parent=self)
+        except Exception:
+            self.a.log.exception('Game video')
+            messagebox.showerror('Видео', 'Не удалось открыть видео. Смотри журнал.', parent=self.window)
+            self.a.world.video_finished()
 
     def key_down(self, e):
         key = normalize(e.keysym, e.keycode)

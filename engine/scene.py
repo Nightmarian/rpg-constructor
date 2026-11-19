@@ -1,11 +1,7 @@
-import os
-import subprocess
-import tempfile
 import threading
 import time
 from queue import Queue, Empty, Full
 import imageio.v2 as imageio
-from imageio_ffmpeg import get_ffmpeg_exe
 from PIL import Image, ImageDraw, ImageFont
 from engine.resources import Resources
 from engine.render_cache import RenderCache
@@ -16,7 +12,7 @@ class VideoBuffer:
 
     def __init__(self, file):
         self.file = file
-        self.queue = Queue(maxsize=120)
+        self.queue = Queue(maxsize=30)
         self.reader = imageio.get_reader(file)
         meta = self.reader.get_meta_data()
         self.fps = float(meta.get('fps', 24) or 24)
@@ -32,7 +28,7 @@ class VideoBuffer:
                         self.queue.put_nowait(image)
                         break
                     except Full:
-                        time.sleep(0.005)
+                        time.sleep(0.01)
         except Exception:
             pass
 
@@ -58,7 +54,6 @@ class Scene:
         self.cache = RenderCache()
         self.image_cache = {}
         self.video_cache = {}
-        self.temp_files = []
         for mid, m in p['maps'].items():
             image = Image.open(m['image']).convert('RGB') if m.get('image') else None
             if image is not None and m.get('image_size') and (list(image.size) != m['image_size']):
@@ -98,26 +93,11 @@ class Scene:
             return frames[-1]
         return frames[0]
 
-    def scaled_video(self, file, size):
-        key = (file, size)
-        if key in self.video_cache:
-            return self.video_cache[key]
-        handle = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
-        handle.close()
-        self.temp_files.append(handle.name)
-        command = [get_ffmpeg_exe(), '-y', '-i', file, '-vf', f'scale={size[0]}:{size[1]}', '-an', '-c:v', 'mpeg4', '-q:v', '5', handle.name]
-        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
-        if result.returncode != 0:
-            raise RuntimeError('Не удалось подготовить видео: ' + (result.stderr or '').strip()[-500:])
-        self.video_cache[key] = handle.name
-        return handle.name
-
     def video(self, item, size):
-        key = (item['file'], size)
+        key = item['file']
         entry = self.video_cache.get(key)
         if not isinstance(entry, dict):
-            scaled = self.scaled_video(item['file'], size)
-            entry = {'buffer': VideoBuffer(scaled), 'last': 0.0, 'frame': None, 'size': None, 'resized': None}
+            entry = {'buffer': VideoBuffer(key), 'last': 0.0, 'frame': None, 'size': None, 'resized': None}
             self.video_cache[key] = entry
         now = time.monotonic()
         if entry['frame'] is None or now - entry['last'] >= 1 / entry['buffer'].fps:
@@ -167,7 +147,7 @@ class Scene:
             for cx in range(max(0, int(x // t)), min(m['width'], int((x + vw) // t) + 1) + 1):
                 xx = round((cx * t - x) * sx)
                 d.line((xx, 0, xx, h), fill=(100, 130, 150))
-            for cy in range(max(0, int(y // t)), min(m['height'], int((y + vh) // t) + 1) + 1):
+            for cy in range(max(0, int(y // t)), min(m['height'], int((y + vh) // t) + 1)):
                 yy = round((cy * t - y) * sy)
                 d.line((0, yy, w, yy), fill=(100, 130, 150))
         actors.append((player['y'], player['x'], p['hero'], player['direction'], player['phase'] if player['moving'] else 0))

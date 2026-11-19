@@ -28,6 +28,7 @@ class World:
         self.pending_hide = False
         self.video_callback = None
         self.video_audio = None
+        self.interact_cooldown = 0.0
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -172,7 +173,10 @@ class World:
                         self.images.pop(index)
                 self.dialogue_images.clear()
                 self._stop_video_audio()
+                self.interact_cooldown = time.monotonic() + 0.35
                 self.advance()
+            return
+        if time.monotonic() < self.interact_cooldown:
             return
         p = self.player
         t = self.map['tile_size']

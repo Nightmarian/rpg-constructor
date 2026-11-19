@@ -47,7 +47,7 @@ def prepare_vlc():
 
 class VideoWindow:
 
-    def __init__(self, app, file, on_close, parent=None):
+    def __init__(self, app, file, on_close, parent=None, canvas=None):
         self.app = app
         self.on_close = on_close
         self.closed = False
@@ -57,7 +57,7 @@ class VideoWindow:
         width, height = app.project['output_size']
         if parent is not None:
             self.window = parent
-            self.canvas = parent.canvas
+            self.canvas = canvas or parent.canvas
             self.previous_bindings = {
                 '<space>': list(self.window.bind('<space>')),
                 '<Return>': list(self.window.bind('<Return>')),

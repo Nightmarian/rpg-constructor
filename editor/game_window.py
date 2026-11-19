@@ -47,7 +47,7 @@ class GameWindow:
     def play_video(self, file):
         try:
             from engine.video_player import VideoWindow
-            VideoWindow(self.a, file, self.a.world.video_finished, parent=self)
+            VideoWindow(self.a, file, self.a.world.video_finished, parent=self.window, canvas=self.canvas)
         except Exception:
             self.a.log.exception('Game video')
             messagebox.showerror('Видео', 'Не удалось открыть видео. Смотри журнал.', parent=self.window)

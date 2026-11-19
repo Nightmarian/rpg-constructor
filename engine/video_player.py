@@ -47,7 +47,7 @@ def prepare_vlc():
 
 class VideoWindow:
 
-    def __init__(self, app, file, on_close):
+    def __init__(self, app, file, on_close, parent=None):
         self.app = app
         self.on_close = on_close
         self.closed = False
@@ -55,18 +55,34 @@ class VideoWindow:
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
         width, height = app.project['output_size']
-        self.window = tk.Toplevel(app.window)
-        self.window.title('Видео')
-        self.window.geometry(f'{width}x{height}')
-        self.window.resizable(False, False)
-        self.window.configure(background='black')
-        self.window.protocol('WM_DELETE_WINDOW', self.close)
-        self.window.bind('<space>', lambda event: self.close())
-        self.window.bind('<Return>', lambda event: self.close())
-        self.window.focus_set()
-        self.window.update_idletasks()
-        if hasattr(self.player, 'set_hwnd'):
-            self.player.set_hwnd(self.window.winfo_id())
+        if parent is not None:
+            self.window = parent
+            self.canvas = parent.canvas
+            self.previous_bindings = {
+                '<space>': list(self.window.bind('<space>')),
+                '<Return>': list(self.window.bind('<Return>')),
+            }
+            self.window.unbind('<space>')
+            self.window.unbind('<Return>')
+            self.window.bind('<space>', lambda event: self.close())
+            self.window.bind('<Return>', lambda event: self.close())
+            self.window.protocol('WM_DELETE_WINDOW', self.close)
+            self.window.update_idletasks()
+            if hasattr(self.player, 'set_hwnd'):
+                self.player.set_hwnd(self.canvas.winfo_id())
+        else:
+            self.window = tk.Toplevel(app.window)
+            self.window.title('Видео')
+            self.window.geometry(f'{width}x{height}')
+            self.window.resizable(False, False)
+            self.window.configure(background='black')
+            self.window.protocol('WM_DELETE_WINDOW', self.close)
+            self.window.bind('<space>', lambda event: self.close())
+            self.window.bind('<Return>', lambda event: self.close())
+            self.window.focus_set()
+            self.window.update_idletasks()
+            if hasattr(self.player, 'set_hwnd'):
+                self.player.set_hwnd(self.window.winfo_id())
         media = self.instance.media_new(str(file))
         self.player.set_media(media)
         self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, lambda event: app.window.after(0, self.close))
@@ -85,9 +101,19 @@ class VideoWindow:
                 self.player.set_hwnd(0)
         except Exception:
             pass
+        if hasattr(self, 'previous_bindings'):
+            try:
+                self.window.unbind('<space>')
+                self.window.unbind('<Return>')
+                for event, handlers in self.previous_bindings.items():
+                    for handler in handlers:
+                        self.window.bind(event, handler)
+            except Exception:
+                pass
         def destroy():
             try:
-                self.window.destroy()
+                if self.window is not self.app.window:
+                    self.window.destroy()
             except Exception:
                 pass
             callback = self.on_close

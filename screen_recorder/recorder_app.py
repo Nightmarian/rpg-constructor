@@ -7,6 +7,16 @@ from tkinter import ttk, messagebox
 from datetime import datetime
 from pathlib import Path
 
+try:
+    import ctypes
+    if sys.platform == 'win32':
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            ctypes.windll.user32.SetProcessDPIAware()
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 RECORDINGS = ROOT / 'recordings'
 
@@ -15,7 +25,7 @@ class RecorderApp:
         self.process = None
         self.window = tk.Tk()
         self.window.title('Запись игры')
-        self.window.geometry('520x260')
+        self.window.geometry('560x330')
         self.window.resizable(False, False)
         ttk.Label(self.window, text='Название окна игры').pack(anchor='w', padx=14, pady=(16, 3))
         self.title_var = tk.StringVar(value='Игра')
@@ -30,6 +40,7 @@ class RecorderApp:
         self.stop_button = ttk.Button(buttons, text='Стоп', command=self.stop, state='disabled')
         self.stop_button.pack(side='left', padx=6)
         ttk.Button(buttons, text='Открыть папку', command=self.open_folder).pack(side='left', padx=6)
+        ttk.Button(buttons, text='Параметры recap', command=self.show_options).pack(side='left', padx=6)
         self.window.protocol('WM_DELETE_WINDOW', self.close)
 
     def recap_command(self):
@@ -40,6 +51,21 @@ class RecorderApp:
         if local.exists():
             return [str(local)]
         raise RuntimeError('Не найдена программа recap. Установи зависимости через install.bat.')
+
+    def show_options(self):
+        try:
+            command = self.recap_command() + ['record', '--help']
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            text = (result.stdout or '') + '\n' + (result.stderr or '')
+        except Exception as exc:
+            text = str(exc)
+        win = tk.Toplevel(self.window)
+        win.title('Параметры recap')
+        win.geometry('760x520')
+        box = tk.Text(win, wrap='word')
+        box.pack(fill='both', expand=True, padx=10, pady=10)
+        box.insert('1.0', text)
+        box.config(state='disabled')
 
     def start(self):
         if self.process and self.process.poll() is None:

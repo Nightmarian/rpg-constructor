@@ -47,10 +47,11 @@ def prepare_vlc():
 
 class VideoWindow:
 
-    def __init__(self, app, file, on_close, parent=None, canvas=None):
+    def __init__(self, app, file, on_close, parent=None, canvas=None, controller=None):
         self.app = app
         self.on_close = on_close
         self.closed = False
+        self.controller = controller
         vlc = prepare_vlc()
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
@@ -58,15 +59,8 @@ class VideoWindow:
         if parent is not None:
             self.window = parent
             self.canvas = canvas or parent.canvas
-            self.previous_bindings = {
-                '<space>': list(self.window.bind('<space>')),
-                '<Return>': list(self.window.bind('<Return>')),
-            }
-            self.window.unbind('<space>')
-            self.window.unbind('<Return>')
-            self.window.bind('<space>', lambda event: self.close())
-            self.window.bind('<Return>', lambda event: self.close())
-            self.window.protocol('WM_DELETE_WINDOW', self.close)
+            if self.controller:
+                self.controller.video_active = True
             self.window.update_idletasks()
             if hasattr(self.player, 'set_hwnd'):
                 self.player.set_hwnd(self.canvas.winfo_id())
@@ -77,8 +71,6 @@ class VideoWindow:
             self.window.resizable(False, False)
             self.window.configure(background='black')
             self.window.protocol('WM_DELETE_WINDOW', self.close)
-            self.window.bind('<space>', lambda event: self.close())
-            self.window.bind('<Return>', lambda event: self.close())
             self.window.focus_set()
             self.window.update_idletasks()
             if hasattr(self.player, 'set_hwnd'):
@@ -101,23 +93,10 @@ class VideoWindow:
                 self.player.set_hwnd(0)
         except Exception:
             pass
-        if hasattr(self, 'previous_bindings'):
-            try:
-                self.window.unbind('<space>')
-                self.window.unbind('<Return>')
-                for event, handlers in self.previous_bindings.items():
-                    for handler in handlers:
-                        self.window.bind(event, handler)
-            except Exception:
-                pass
-        def destroy():
-            try:
-                if self.window is not self.app.window:
-                    self.window.destroy()
-            except Exception:
-                pass
-            callback = self.on_close
-            self.on_close = None
-            if callback:
-                callback()
-        self.app.window.after(100, destroy)
+        if self.controller:
+            self.controller.video_active = False
+            self.controller.canvas.focus_set()
+        callback = self.on_close
+        self.on_close = None
+        if callback:
+            callback()

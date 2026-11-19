@@ -18,6 +18,8 @@ class GameWindow:
         self.samples = []
         self.record_start = 0.0
         self.last = time.perf_counter()
+        self.video = None
+        self.video_active = False
         width, height = a.project['output_size']
         self.window = tk.Toplevel(a.window)
         self.window.title('Игра')
@@ -47,11 +49,17 @@ class GameWindow:
     def play_video(self, file):
         try:
             from engine.video_player import VideoWindow
-            VideoWindow(self.a, file, self.a.world.video_finished, parent=self.window, canvas=self.canvas)
+            self.video = VideoWindow(self.a, file, self.a.world.video_finished, parent=self.window, canvas=self.canvas, controller=self)
         except Exception:
             self.a.log.exception('Game video')
             messagebox.showerror('Видео', 'Не удалось открыть видео. Смотри журнал.', parent=self.window)
+            self.video_active = False
             self.a.world.video_finished()
+
+    def close_video(self):
+        if self.video:
+            self.video.close()
+            self.video = None
 
     def key_down(self, e):
         key = normalize(e.keysym, e.keycode)
@@ -59,6 +67,10 @@ class GameWindow:
         self.keys.add(key)
         if key == 'Escape':
             self.close()
+            return
+        if self.video_active and key in ('space', 'Return'):
+            if first:
+                self.close_video()
             return
         if first and key in ('space', 'Return'):
             try:

@@ -1,5 +1,9 @@
 import copy
 import math
+import os
+import subprocess
+import tempfile
+import time
 from engine.player import Player
 from engine.npcs import NPCs
 from engine.transition import Transition
@@ -19,6 +23,10 @@ class World:
         self.pending = []
         self.event_key = ''
         self.touch_lock = None
+        self.images = []
+        self.dialogue_images = []
+        self.video_callback = None
+        self.video_audio = None
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -27,10 +35,10 @@ class World:
         return self.project['maps'][self.map_id]
 
     def snapshot(self, t):
-        return dict(t=t, map_id=self.map_id, player=self.player.state(), flags=copy.deepcopy(self.flags), self_flags=copy.deepcopy(self.self_flags), dialogue=copy.deepcopy(self.dialogue), actors=self.npcs.snapshot(), fade=self.transition.alpha)
+        return dict(t=t, map_id=self.map_id, player=self.player.state(), flags=copy.deepcopy(self.flags), self_flags=copy.deepcopy(self.self_flags), dialogue=copy.deepcopy(self.dialogue), actors=self.npcs.snapshot(), fade=self.transition.alpha, images=copy.deepcopy(self.images))
 
     def view_state(self):
-        return dict(map_id=self.map_id, player=self.player.state(), flags=self.flags, self_flags=self.self_flags, dialogue=self.dialogue, actors=self.npcs.snapshot(), fade=self.transition.alpha)
+        return dict(map_id=self.map_id, player=self.player.state(), flags=self.flags, self_flags=self.self_flags, dialogue=self.dialogue, actors=self.npcs.snapshot(), fade=self.transition.alpha, images=self.images)
 
     def _transfer(self, c):
         self.map_id = c['target']
@@ -51,11 +59,15 @@ class World:
 
     def advance(self):
         processed = 0
-        while self.pending and (not self.dialogue) and (not self.transition.active):
+        while self.pending and (not self.dialogue or (self.pending[0].get('type') == 'and' and len(self.pending) > 1 and self.pending[1].get('type') != 'hide_image')) and (not self.transition.active):
             processed += 1
             if processed > 10000:
                 raise RuntimeError('Too many event commands in one interaction')
             c = self.pending.pop(0)
+            if c.get('type') == 'and':
+                if not self.pending or self.pending[0].get('type') not in ('sound', 'show_image', 'show_video', 'hide_image'):
+                    raise ValueError('После И используйте звук, картинку, видео или скрытие')
+                c = self.pending.pop(0)
             kind = c['type']
             if kind == 'text':
                 self.dialogue = pages(self.root, self.project, c.get('name', ''), c.get('text', ''))
@@ -73,6 +85,78 @@ class World:
                     self.transition.start(c, duration)
                 else:
                     self._transfer(c)
+            elif kind == 'sound':
+                self._play_sound(c)
+            elif kind == 'show_video':
+                if self.video_callback:
+                    self.video_callback(c['file'])
+                else:
+                    item = dict(c)
+                    item['shown_at'] = time.monotonic()
+                    self.images.append(item)
+                    if self.dialogue:
+                        self.dialogue_images.append(len(self.images) - 1)
+                    self._play_video_audio(c['file'])
+            elif kind == 'show_image':
+                item = dict(c)
+                item['shown_at'] = time.monotonic()
+                self.images.append(item)
+                if self.dialogue:
+                    self.dialogue_images.append(len(self.images) - 1)
+            elif kind == 'hide_image':
+                if self.images:
+                    self.images.pop()
+                    if self.dialogue_images and self.dialogue_images[-1] >= len(self.images):
+                        self.dialogue_images.pop()
+                self._stop_video_audio()
+
+    def video_finished(self):
+        for index in range(len(self.images) - 1, -1, -1):
+            if self.images[index].get('type') == 'show_video':
+                self.images.pop(index)
+                break
+        self._stop_video_audio()
+        self.advance()
+
+    def _play_sound(self, c):
+        try:
+            if os.name == 'nt':
+                import winsound
+                flags = winsound.SND_FILENAME | winsound.SND_ASYNC
+                winsound.PlaySound(c['file'], flags)
+        except Exception as exc:
+            print('Sound error:', exc)
+
+    def _play_video_audio(self, file):
+        try:
+            self._stop_video_audio()
+            from imageio_ffmpeg import get_ffmpeg_exe
+            ffmpeg = get_ffmpeg_exe()
+            handle = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            handle.close()
+            command = [ffmpeg, '-y', '-nostdin', '-i', file, '-vn', '-map', '0:a:0?', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', handle.name]
+            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
+            if result.returncode != 0:
+                raise RuntimeError((result.stderr or '').strip()[-500:])
+            self.video_audio = handle.name
+            if os.name == 'nt':
+                import winsound
+                winsound.PlaySound(handle.name, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        except Exception as exc:
+            self.video_audio = None
+            print('Video audio error:', exc)
+
+    def _stop_video_audio(self):
+        if not self.video_audio:
+            return
+        try:
+            if os.name == 'nt':
+                import winsound
+                winsound.PlaySound(None, 0)
+            os.remove(self.video_audio)
+        except Exception:
+            pass
+        self.video_audio = None
 
     def interact(self):
         if self.transition.active:
@@ -80,6 +164,11 @@ class World:
         if self.dialogue:
             self.dialogue.pop(0)
             if not self.dialogue:
+                for index in reversed(self.dialogue_images):
+                    if 0 <= index < len(self.images):
+                        self.images.pop(index)
+                self.dialogue_images.clear()
+                self._stop_video_audio()
                 self.advance()
             return
         p = self.player

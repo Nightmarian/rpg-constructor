@@ -3,3 +3,4 @@ imageio
 imageio-ffmpeg==0.6.0
 recap-capture
 python-vlc
+keyboard

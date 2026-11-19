@@ -1,11 +1,13 @@
 import copy
 import json
+import subprocess
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from pathlib import Path
-from PIL import ImageTk
+from PIL import Image, ImageTk
 from support.keys import normalize
 
 
@@ -20,6 +22,7 @@ class GameWindow:
         self.last = time.perf_counter()
         self.video = None
         self.video_active = False
+        self.fullscreen = False
         width, height = a.project['output_size']
         self.window = tk.Toplevel(a.window)
         self.window.title('Игра')
@@ -28,16 +31,18 @@ class GameWindow:
         self.canvas = tk.Canvas(self.window, bg='black', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.item = self.canvas.create_image(0, 0, anchor='nw')
-        bar = ttk.Frame(self.window, padding=4)
-        bar.pack(side='bottom', fill='x')
-        self.status = tk.StringVar(value='WASD/стрелки — движение, Пробел/Enter — действие, Escape — выход')
-        ttk.Label(bar, textvariable=self.status, anchor='w').pack(side='left', fill='x', expand=True)
-        self.record_button = ttk.Button(bar, text='Запись', command=self.start_record)
+        self.bar = ttk.Frame(self.window, padding=4)
+        self.bar.pack(side='bottom', fill='x')
+        self.status = tk.StringVar(value='WASD/стрелки — движение, Пробел/Enter — действие, F11 — полный экран, Escape — выход')
+        ttk.Label(self.bar, textvariable=self.status, anchor='w').pack(side='left', fill='x', expand=True)
+        self.record_button = ttk.Button(self.bar, text='Запись', command=self.start_record)
         self.record_button.pack(side='right', padx=3)
-        self.stop_button = ttk.Button(bar, text='Стоп', command=self.stop_record, state='disabled')
+        self.stop_button = ttk.Button(self.bar, text='Стоп', command=self.stop_record, state='disabled')
         self.stop_button.pack(side='right', padx=3)
-        self.mp4_button = ttk.Button(bar, text='MP4', command=self.export_mp4, state='disabled')
+        self.mp4_button = ttk.Button(self.bar, text='MP4', command=self.export_mp4, state='disabled')
         self.mp4_button.pack(side='right', padx=3)
+        self.screen_record_button = ttk.Button(self.bar, text='Запись экрана', command=self.open_screen_recorder)
+        self.screen_record_button.pack(side='right', padx=3)
         self.canvas.focus_set()
         self.window.protocol('WM_DELETE_WINDOW', self.close)
         self.window.bind('<KeyPress>', self.key_down)
@@ -45,6 +50,27 @@ class GameWindow:
         self.window.bind('<FocusOut>', lambda e: self.keys.clear())
         self.a.world.video_callback = self.play_video
         self.window.after(30, self.tick)
+
+    def open_screen_recorder(self):
+        root = Path(self.a.root)
+        script = root / 'screen_recorder' / 'recorder_app.py'
+        python = Path(sys.executable)
+        try:
+            subprocess.Popen([str(python), str(script)], cwd=str(root), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        except Exception:
+            self.a.log.exception('Screen recorder')
+            messagebox.showerror('Запись экрана', 'Не удалось открыть запись экрана. Смотри журнал.', parent=self.window)
+
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        self.window.attributes('-fullscreen', self.fullscreen)
+        if self.fullscreen:
+            self.bar.pack_forget()
+        else:
+            width, height = self.a.project['output_size']
+            self.window.geometry(f'{width}x{height}')
+            self.bar.pack(side='bottom', fill='x')
+        self.canvas.focus_set()
 
     def play_video(self, file):
         try:
@@ -65,7 +91,14 @@ class GameWindow:
         key = normalize(e.keysym, e.keycode)
         first = key not in self.keys
         self.keys.add(key)
+        if key == 'f11':
+            if first:
+                self.toggle_fullscreen()
+            return
         if key == 'Escape':
+            if self.fullscreen:
+                self.toggle_fullscreen()
+                return
             self.close()
             return
         if self.video_active and key in ('space', 'Return'):
@@ -141,7 +174,15 @@ class GameWindow:
             if self.recording:
                 self.samples.append(self.a.world.snapshot(started - self.record_start))
             frame = self.a.scene.draw(self.a.project, self.a.world.view_state(), (width, height))
-            self.photo = ImageTk.PhotoImage(frame)
+            target_w, target_h = self.a.project['output_size']
+            scale = min(width / target_w, height / target_h)
+            draw_w = max(1, round(target_w * scale))
+            draw_h = max(1, round(target_h * scale))
+            if (frame.width, frame.height) != (draw_w, draw_h):
+                frame = frame.resize((draw_w, draw_h), Image.Resampling.LANCZOS)
+            display = Image.new('RGB', (width, height), (0, 0, 0))
+            display.paste(frame, ((width - draw_w) // 2, (height - draw_h) // 2))
+            self.photo = ImageTk.PhotoImage(display)
             self.canvas.itemconfig(self.item, image=self.photo)
             if self.recording:
                 self.status.set(f'ЗАПИСЬ {started - self.record_start:.1f} с | Стоп → MP4')

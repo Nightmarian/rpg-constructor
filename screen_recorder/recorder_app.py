@@ -25,12 +25,18 @@ class RecorderApp:
         self.process = None
         self.window = tk.Tk()
         self.window.title('Запись игры')
-        self.window.geometry('560x330')
+        self.window.geometry('580x420')
         self.window.resizable(False, False)
-        ttk.Label(self.window, text='Название окна игры').pack(anchor='w', padx=14, pady=(16, 3))
+        ttk.Label(self.window, text='Режим записи').pack(anchor='w', padx=14, pady=(16, 3))
+        self.mode = tk.StringVar(value='game')
+        ttk.Radiobutton(self.window, text='Окно игры — записать окно «Игра» и звук игры', value='window', variable=self.mode, command=self.update_hint).pack(anchor='w', padx=14)
+        ttk.Radiobutton(self.window, text='Полный экран — весь монитор', value='monitor', variable=self.mode, command=self.update_hint).pack(anchor='w', padx=14)
+        ttk.Radiobutton(self.window, text='Полный экран — только игра 16:9', value='game', variable=self.mode, command=self.update_hint).pack(anchor='w', padx=14)
+        ttk.Label(self.window, text='Название окна игры').pack(anchor='w', padx=14, pady=(14, 3))
         self.title_var = tk.StringVar(value='Игра')
         ttk.Entry(self.window, textvariable=self.title_var, width=48).pack(fill='x', padx=14)
-        ttk.Label(self.window, text='Будет записано видео окна и звук этого приложения. Микрофон не записывается.').pack(anchor='w', padx=14, pady=10)
+        self.hint = tk.StringVar(value='Будет записана центральная область 1920×1080 — только игра, без чёрных полос.\nГлобальная клавиша F9: начать или остановить запись.')
+        ttk.Label(self.window, textvariable=self.hint, wraplength=520, justify='left').pack(anchor='w', padx=14, pady=10)
         self.status = tk.StringVar(value='Готово к записи')
         ttk.Label(self.window, textvariable=self.status, anchor='w').pack(fill='x', padx=14)
         buttons = ttk.Frame(self.window)
@@ -42,6 +48,22 @@ class RecorderApp:
         ttk.Button(buttons, text='Открыть папку', command=self.open_folder).pack(side='left', padx=6)
         ttk.Button(buttons, text='Параметры recap', command=self.show_options).pack(side='left', padx=6)
         self.window.protocol('WM_DELETE_WINDOW', self.close)
+        self.register_hotkey()
+
+    def register_hotkey(self):
+        try:
+            import keyboard
+            keyboard.add_hotkey('f9', lambda: self.window.after(0, self.toggle))
+        except Exception:
+            pass
+
+    def update_hint(self):
+        if self.mode.get() == 'window':
+            self.hint.set('Будет записано окно игры и звук игры. Микрофон не записывается.\nГлобальная клавиша F9: начать или остановить запись.')
+        elif self.mode.get() == 'monitor':
+            self.hint.set('Будет записан весь монитор в разрешении 1920×1200 и системный звук.\nГлобальная клавиша F9: начать или остановить запись.')
+        else:
+            self.hint.set('Будет записана центральная область 1920×1080 — только игра, без чёрных полос.\nГлобальная клавиша F9: начать или остановить запись.')
 
     def recap_command(self):
         exe = shutil.which('recap')
@@ -67,11 +89,17 @@ class RecorderApp:
         box.insert('1.0', text)
         box.config(state='disabled')
 
+    def toggle(self):
+        if self.process and self.process.poll() is None:
+            self.stop()
+        else:
+            self.start()
+
     def start(self):
         if self.process and self.process.poll() is None:
             return
         title = self.title_var.get().strip()
-        if not title:
+        if self.mode.get() == 'window' and not title:
             messagebox.showerror('Запись', 'Введите название окна игры.', parent=self.window)
             return
         try:
@@ -81,7 +109,12 @@ class RecorderApp:
             return
         RECORDINGS.mkdir(exist_ok=True)
         output = RECORDINGS / ('screen_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.mp4')
-        full = command + ['record', '--window-title', title, '--output', str(output)]
+        if self.mode.get() == 'window':
+            full = command + ['record', '--window-title', title, '--output', str(output)]
+        elif self.mode.get() == 'monitor':
+            full = command + ['record', '--output', str(output)]
+        else:
+            full = command + ['record', '--crop-size', '1920x1080', '--crop-position', 'middle', '--output', str(output)]
         try:
             self.process = subprocess.Popen(full, cwd=ROOT, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         except Exception as exc:
@@ -90,6 +123,7 @@ class RecorderApp:
         self.status.set('ЗАПИСЬ: ' + output.name)
         self.start_button.config(state='disabled')
         self.stop_button.config(state='normal')
+        self.notify('Запись началась', 'Нажми F9, чтобы остановить запись.')
 
     def stop(self):
         if not self.process or self.process.poll() is not None:
@@ -106,6 +140,25 @@ class RecorderApp:
         self.status.set('Запись завершена. Файл в папке recordings.')
         self.start_button.config(state='normal')
         self.stop_button.config(state='disabled')
+        self.notify('Запись остановлена', 'Файл сохранён в папке recordings.')
+
+    def notify(self, title, text):
+        try:
+            from tkinter import font
+            win = tk.Toplevel(self.window)
+            win.overrideredirect(True)
+            win.attributes('-topmost', True)
+            width, height = 280, 90
+            screen_w = self.window.winfo_screenwidth()
+            screen_h = self.window.winfo_screenheight()
+            win.geometry(f'{width}x{height}+{screen_w - width - 24}+{screen_h - height - 64}')
+            frame = ttk.Frame(win, padding=12)
+            frame.pack(fill='both', expand=True)
+            ttk.Label(frame, text=title, font=('Segoe UI', 11, 'bold')).pack(anchor='w')
+            ttk.Label(frame, text=text, wraplength=250).pack(anchor='w', pady=(4, 0))
+            win.after(2500, win.destroy)
+        except Exception:
+            pass
 
     def open_folder(self):
         RECORDINGS.mkdir(exist_ok=True)

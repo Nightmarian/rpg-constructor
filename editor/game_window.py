@@ -23,6 +23,7 @@ class GameWindow:
         self.video = None
         self.video_active = False
         self.fullscreen = False
+        self.frame_size = None
         width, height = a.project['output_size']
         self.window = tk.Toplevel(a.window)
         self.window.title('Игра')

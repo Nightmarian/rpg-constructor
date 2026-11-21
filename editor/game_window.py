@@ -10,6 +10,21 @@ from pathlib import Path
 from PIL import Image, ImageTk
 from support.keys import normalize
 
+ICON_URL = 'https://raw.githubusercontent.com/Nightmarian/rpg-constructor/main/%D0%B8%D0%BA%D0%BE%D0%BD%D0%BA%D0%B0/%D0%9C%D1%80%D0%B0%D1%87%D0%BD%D0%B0%D1%8F%20%D0%B8%D0%BA%D0%BE%D0%BD%D0%BA%D0%B0.png'
+
+def load_icon(window):
+    root = Path(__file__).resolve().parent.parent
+    icon_path = root / 'иконка' / 'Мрачная иконка.png'
+    try:
+        if not icon_path.exists():
+            icon_path.parent.mkdir(exist_ok=True)
+            import urllib.request
+            urllib.request.urlretrieve(ICON_URL, icon_path)
+        icon = ImageTk.PhotoImage(Image.open(icon_path))
+        window.iconphoto(True, icon)
+        window._icon = icon
+    except Exception:
+        pass
 
 class GameWindow:
     def __init__(self, a, display_mode='fit'):
@@ -29,6 +44,7 @@ class GameWindow:
         self.window.title('Игра')
         self.window.geometry(f'{width}x{height}')
         self.window.resizable(False, False)
+        load_icon(self.window)
         self.canvas = tk.Canvas(self.window, bg='black', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.item = self.canvas.create_image(0, 0, anchor='nw')

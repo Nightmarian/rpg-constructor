@@ -1,14 +1,23 @@
 from pathlib import Path
+import ctypes
 import json
 import subprocess
 import sys
 import tkinter as tk
 from tkinter import ttk
 
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
 def choose_mode():
     root = tk.Tk()
     root.title('Запуск игры')
-    root.geometry('360x180')
+    root.geometry('380x200')
     root.resizable(False, False)
     root.attributes('-topmost', True)
     choice = {'mode': None}
@@ -50,6 +59,11 @@ def main():
     if mode == 'normal' and pythonw.is_file():
         exe = str(pythonw)
     args = ['-m', 'unittest', 'discover', '-s', 'tests', '-v'] if '--tests' in sys.argv else [str(root / 'main.py')]
-    return subprocess.call([exe, *args], cwd=root)
+    process = subprocess.Popen([exe, *args], cwd=root)
+    try:
+        process.wait()
+    except KeyboardInterrupt:
+        process.terminate()
+    return 0
 if __name__ == '__main__':
     raise SystemExit(main())

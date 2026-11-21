@@ -12,8 +12,9 @@ from support.keys import normalize
 
 
 class GameWindow:
-    def __init__(self, a):
+    def __init__(self, a, display_mode='fit'):
         self.a = a
+        self.display_mode = display_mode
         self.keys = set()
         self.running = True
         self.recording = False
@@ -23,7 +24,6 @@ class GameWindow:
         self.video = None
         self.video_active = False
         self.fullscreen = False
-        self.frame_size = None
         width, height = a.project['output_size']
         self.window = tk.Toplevel(a.window)
         self.window.title('Игра')
@@ -174,8 +174,16 @@ class GameWindow:
             self.a.world.update(self.keys, dt, self.a.scene.size(self.a.project, self.a.world.map_id), self.a.collisions.get())
             if self.recording:
                 self.samples.append(self.a.world.snapshot(started - self.record_start))
-            frame = self.a.scene.draw(self.a.project, self.a.world.view_state(), (width, height))
-            self.photo = ImageTk.PhotoImage(frame)
+            target_w, target_h = self.a.project['output_size']
+            frame = self.a.scene.draw(self.a.project, self.a.world.view_state(), (target_w, target_h))
+            scale = min(width / target_w, height / target_h)
+            draw_w = max(1, round(target_w * scale))
+            draw_h = max(1, round(target_h * scale))
+            if (frame.width, frame.height) != (draw_w, draw_h):
+                frame = frame.resize((draw_w, draw_h), Image.Resampling.LANCZOS)
+            display = Image.new('RGB', (width, height), (0, 0, 0))
+            display.paste(frame, ((width - draw_w) // 2, (height - draw_h) // 2))
+            self.photo = ImageTk.PhotoImage(display)
             self.canvas.itemconfig(self.item, image=self.photo)
             if self.recording:
                 self.status.set(f'ЗАПИСЬ {started - self.record_start:.1f} с | Стоп → MP4')

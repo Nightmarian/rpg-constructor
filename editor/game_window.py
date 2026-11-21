@@ -10,38 +10,55 @@ from pathlib import Path
 from PIL import Image, ImageTk
 from support.keys import normalize
 
-def prepare_icon(root, log=None):
-    folder = root / 'иконка'
-    if not folder.is_dir():
-        return None
-    source = None
-    for pattern in ('*.png', '*.gif', '*.jpg', '*.jpeg'):
-        for path in sorted(folder.glob(pattern)):
-            source = path
-            break
-        if source:
-            break
-    if not source:
-        return None
-    ico = folder / 'icon.ico'
-    try:
-        if not ico.exists():
-            image = Image.open(source)
-            image.save(ico, format='ICO', sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-        return ico
-    except Exception as exc:
-        if log:
-            log.warning('Icon convert failed: %s', exc)
-        return None
+BASE = Path(__file__).resolve().parent.parent
+DEBUG = BASE / 'icon_debug.txt'
 
-def apply_icon(window, root, log=None):
+def debug_write(text):
     try:
-        ico = prepare_icon(root, log)
+        with DEBUG.open('a', encoding='utf-8') as file:
+            file.write(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' | ' + text + '\n')
+    except Exception:
+        pass
+
+def prepare_icon():
+    debug_write('BASE=' + str(BASE))
+    for name in ('Иконка', 'иконка'):
+        folder = BASE / name
+        debug_write('CHECK=' + str(folder) + ' exists=' + str(folder.is_dir()))
+        if not folder.is_dir():
+            continue
+        source = None
+        for pattern in ('*.png', '*.gif', '*.jpg', '*.jpeg'):
+            for path in sorted(folder.glob(pattern)):
+                source = path
+                break
+            if source:
+                break
+        debug_write('SOURCE=' + str(source))
+        if not source:
+            continue
+        ico = folder / 'icon.ico'
+        try:
+            if not ico.exists():
+                image = Image.open(source)
+                image.save(ico, format='ICO', sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+                debug_write('ICO_CREATED=' + str(ico))
+            else:
+                debug_write('ICO_EXISTS=' + str(ico))
+            return ico
+        except Exception as exc:
+            debug_write('ICO_ERROR=' + repr(exc))
+    return None
+
+def apply_icon(window):
+    try:
+        ico = prepare_icon()
+        debug_write('APPLY=' + str(ico))
         if ico:
             window.iconbitmap(str(ico))
+            debug_write('APPLIED')
     except Exception as exc:
-        if log:
-            log.warning('Icon apply failed: %s', exc)
+        debug_write('APPLY_ERROR=' + repr(exc))
 
 class GameWindow:
     def __init__(self, a, display_mode='fit'):
@@ -61,8 +78,8 @@ class GameWindow:
         self.window.title('Игра')
         self.window.geometry(f'{width}x{height}')
         self.window.resizable(False, False)
-        apply_icon(self.window, Path(self.a.root), self.a.log)
-        apply_icon(self.a.window, Path(self.a.root), self.a.log)
+        apply_icon(self.window)
+        apply_icon(self.a.window)
         self.canvas = tk.Canvas(self.window, bg='black', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.item = self.canvas.create_image(0, 0, anchor='nw')

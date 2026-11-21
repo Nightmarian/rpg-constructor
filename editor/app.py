@@ -1,6 +1,8 @@
+import sys
 import time
 import math
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 from project import storage
@@ -26,6 +28,15 @@ class App:
         self.window.title('RPG Constructor 0.9.5')
         self.window.geometry('1320x870')
         self.window.minsize(1150, 650)
+        if getattr(sys, 'frozen', False):
+            icon_path = Path(getattr(sys, '_MEIPASS', Path('.'))) / 'icon.ico'
+        else:
+            icon_path = root / 'Иконка' / 'icon.ico'
+        if icon_path.exists():
+            try:
+                self.window.iconbitmap(default=str(icon_path))
+            except Exception:
+                log.exception('Window icon failed')
         ttk.Style().configure('TButton', padding=(6, 6))
         self.project = storage.load(root / 'assets' / 'demo_project.json', root)
         self.scene = Scene(root, self.project)

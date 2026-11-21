@@ -10,25 +10,38 @@ from pathlib import Path
 from PIL import Image, ImageTk
 from support.keys import normalize
 
-def find_icon(root):
+def prepare_icon(root, log=None):
     folder = root / 'иконка'
     if not folder.is_dir():
         return None
-    for pattern in ('*.png', '*.ico', '*.gif'):
+    source = None
+    for pattern in ('*.png', '*.gif', '*.jpg', '*.jpeg'):
         for path in sorted(folder.glob(pattern)):
-            return path
-    return None
-
-def apply_icon(window, root):
+            source = path
+            break
+        if source:
+            break
+    if not source:
+        return None
+    ico = folder / 'icon.ico'
     try:
-        path = find_icon(root)
-        if not path:
-            return
-        icon = ImageTk.PhotoImage(Image.open(path))
-        window.iconphoto(True, icon)
-        window._icon = icon
-    except Exception:
-        pass
+        if not ico.exists():
+            image = Image.open(source)
+            image.save(ico, format='ICO', sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+        return ico
+    except Exception as exc:
+        if log:
+            log.warning('Icon convert failed: %s', exc)
+        return None
+
+def apply_icon(window, root, log=None):
+    try:
+        ico = prepare_icon(root, log)
+        if ico:
+            window.iconbitmap(str(ico))
+    except Exception as exc:
+        if log:
+            log.warning('Icon apply failed: %s', exc)
 
 class GameWindow:
     def __init__(self, a, display_mode='fit'):
@@ -48,8 +61,8 @@ class GameWindow:
         self.window.title('Игра')
         self.window.geometry(f'{width}x{height}')
         self.window.resizable(False, False)
-        apply_icon(self.window, Path(self.a.root))
-        apply_icon(self.a.window, Path(self.a.root))
+        apply_icon(self.window, Path(self.a.root), self.a.log)
+        apply_icon(self.a.window, Path(self.a.root), self.a.log)
         self.canvas = tk.Canvas(self.window, bg='black', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.item = self.canvas.create_image(0, 0, anchor='nw')

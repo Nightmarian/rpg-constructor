@@ -186,15 +186,6 @@ class World:
             return
         if time.monotonic() < self.interact_cooldown:
             return
-        if self.images:
-            key = self.images[-1].get('event')
-            if key and time.monotonic() < self.event_cooldown.get(key, 0.0):
-                for index in range(len(self.images) - 1, -1, -1):
-                    if self.images[index].get('event') == key:
-                        self.images.pop(index)
-                        break
-                self.event_cooldown[key] = time.monotonic() + 2.0
-                return
         p = self.player
         t = self.map['tile_size']
         vx, vy = {0: (0, 1), 1: (-1, 0), 2: (1, 0), 3: (0, -1)}[p.direction]
@@ -203,8 +194,6 @@ class World:
             pg = active_page(e, self.flags, self.self_flags, self.map_id + ':' + e['id'])
             if not pg or pg['trigger'] != 'action':
                 continue
-            if time.monotonic() < self.event_cooldown.get(self.map_id + ':' + e['id'], 0.0):
-                continue
             ex, ey = self.npcs.position(e)
             dx = ex - p.x
             dy = ey - p.y
@@ -212,7 +201,16 @@ class World:
             if distance <= t * 1.65 and dx * vx + dy * vy >= -t * 0.3:
                 candidates.append((distance, e))
         if candidates:
-            self.start(min(candidates, key=lambda pair: pair[0])[1])
+            event = min(candidates, key=lambda pair: pair[0])[1]
+            key = self.map_id + ':' + event['id']
+            if self.images and self.images[-1].get('event') == key:
+                for index in range(len(self.images) - 1, -1, -1):
+                    if self.images[index].get('event') == key:
+                        self.images.pop(index)
+                        break
+                self.event_cooldown[key] = time.monotonic() + 2.0
+                return
+            self.start(event)
 
     def update(self, keys, dt, size, collisions):
         if self.transition.active:

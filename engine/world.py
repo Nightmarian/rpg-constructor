@@ -220,6 +220,9 @@ class World:
         if self.dialogue:
             self.player.moving = False
             return
+        if self.images:
+            self.player.moving = False
+            return
         self.npcs.update(dt, size)
         m = dict(self.map)
         m['_bodies'] = self.npcs.bodies()

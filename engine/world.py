@@ -29,6 +29,7 @@ class World:
         self.video_callback = None
         self.video_audio = None
         self.interact_cooldown = 0.0
+        self.event_cooldown = {}
         self.npcs = NPCs(self)
         self.transition = Transition()
 
@@ -52,7 +53,10 @@ class World:
     def start(self, event):
         if self.transition.active:
             return
-        self.event_key = self.map_id + ':' + event['id']
+        key = self.map_id + ':' + event['id']
+        if time.monotonic() < self.event_cooldown.get(key, 0.0):
+            return
+        self.event_key = key
         pg = active_page(event, self.flags, self.self_flags, self.event_key)
         if pg:
             self.npcs.face(event)
@@ -101,16 +105,20 @@ class World:
                 else:
                     item = dict(c)
                     item['shown_at'] = time.monotonic()
+                    item['event'] = self.event_key
                     self.images.append(item)
                     if self.dialogue:
                         self.dialogue_images.append(len(self.images) - 1)
                     self._play_video_audio(c['file'])
             elif kind == 'show_image':
+                self.images = [image for image in self.images if image.get('event') != self.event_key]
                 item = dict(c)
                 item['shown_at'] = time.monotonic()
+                item['event'] = self.event_key
                 self.images.append(item)
                 if self.dialogue:
                     self.dialogue_images.append(len(self.images) - 1)
+                self.event_cooldown[self.event_key] = time.monotonic() + 2.0
             elif kind == 'hide_image':
                 self.pending_hide = True
 
@@ -138,7 +146,7 @@ class World:
             ffmpeg = get_ffmpeg_exe()
             handle = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
             handle.close()
-            command = [ffmpeg, '-y', '-nostdin', '-i', file, '-vn', '-map', '0:a:0?', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', handle.name]
+            command = [ffmpeg, '-y', '-nostdin', '-i', file, '-vn', '-map', '0:a:0?', '-acodec', 'pcm_s16le', '-ar', 44100, '-ac', 2, handle.name]
             result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False)
             if result.returncode != 0:
                 raise RuntimeError((result.stderr or '').strip()[-500:])
@@ -186,6 +194,8 @@ class World:
             pg = active_page(e, self.flags, self.self_flags, self.map_id + ':' + e['id'])
             if not pg or pg['trigger'] != 'action':
                 continue
+            if time.monotonic() < self.event_cooldown.get(self.map_id + ':' + e['id'], 0.0):
+                continue
             ex, ey = self.npcs.position(e)
             dx = ex - p.x
             dy = ey - p.y
@@ -214,6 +224,8 @@ class World:
             for e in m['events']:
                 pg = active_page(e, self.flags, self.self_flags, self.map_id + ':' + e['id'])
                 if pg and pg['trigger'] == 'touch' and (tuple((int(v // t) for v in self.npcs.position(e))) == location[1:]):
+                    if time.monotonic() < self.event_cooldown.get(self.map_id + ':' + e['id'], 0.0):
+                        continue
                     self.touch_lock = location
                     self.start(e)
                     break

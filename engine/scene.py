@@ -119,7 +119,7 @@ class Scene:
 
     def picture_geometry(self, item, picture, size):
         w, h = size
-        fit = item.get('fit', 'fit')
+        fit = item.get('fit', 'cover')
         if fit == 'cover':
             factor = max(w / picture.width, h / picture.height)
         else:
@@ -157,7 +157,7 @@ class Scene:
                 actors.append((n.get('y', (e['y'] + 0.85) * t), n.get('x', (e['x'] + 0.5) * t), pg['profile'], n.get('direction', pg['direction']), n.get('phase', 0) if n.get('moving', False) else pg['frame']))
         if marks:
             for cx, cy in m['blocked']:
-                d.rectangle((round((cx * t - x) * sx), round((cy * t - x) * sy), round(((cx + 1) * t - x) * sx), round(((cx + 1) * t - y) * sy)), outline=(245, 70, 70), width=2)
+                d.rectangle((round((cx * t - x) * sx), round((cy * t - y) * sy), round(((cx + 1) * t - x) * sx), round(((cx + 1) * t - y) * sy)), outline=(245, 70, 70), width=2)
         if grid:
             for cx in range(max(0, int(x // t)), min(m['width'], int((x + vw) // t) + 1) + 1):
                 xx = round((cx * t - x) * sx)
@@ -185,7 +185,7 @@ class Scene:
                     entry['resized'] = picture
                     entry['size'] = (pw, ph)
             else:
-                key = (item['file'], pw, ph, item.get('fit', 'fit'))
+                key = (item['file'], pw, ph, item.get('fit', 'cover'))
                 cached = self.picture_cache.get(key)
                 if cached is None:
                     if picture.size != (pw, ph):
@@ -194,7 +194,7 @@ class Scene:
                         cached = picture
                     self.picture_cache[key] = cached
                 picture = cached
-            if item.get('fit', 'fit') == 'cover' and (pw > w or ph > h):
+            if item.get('fit', 'cover') == 'cover' and (pw > w or ph > h):
                 left = max(0, (pw - w) // 2)
                 top = max(0, (ph - h) // 2)
                 picture = picture.crop((left, top, left + min(w, pw), top + min(h, ph)))

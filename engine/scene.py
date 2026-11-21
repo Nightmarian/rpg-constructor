@@ -54,6 +54,8 @@ class Scene:
         self.cache = RenderCache()
         self.image_cache = {}
         self.video_cache = {}
+        self.picture_cache = {}
+        self.mask_cache = {}
         for mid, m in p['maps'].items():
             image = Image.open(m['image']).convert('RGB') if m.get('image') else None
             if image is not None and m.get('image_size') and (list(image.size) != m['image_size']):
@@ -115,6 +117,19 @@ class Scene:
             return self.video(item, size)
         return self.image(item), None
 
+    def picture_geometry(self, item, picture, size):
+        w, h = size
+        fit = item.get('fit', 'fit')
+        if fit == 'cover':
+            factor = max(w / picture.width, h / picture.height)
+        else:
+            factor = min(w / picture.width, h / picture.height)
+        pw = max(1, round(picture.width * factor))
+        ph = max(1, round(picture.height * factor))
+        px = (w - pw) // 2
+        py = (h - ph) // 2
+        return pw, ph, px, py
+
     def draw(self, p, state, size=(960, 540), origin=None, view=None, grid=False, marks=False, editor=False):
         size = tuple(size)
         w, h = size
@@ -142,12 +157,12 @@ class Scene:
                 actors.append((n.get('y', (e['y'] + 0.85) * t), n.get('x', (e['x'] + 0.5) * t), pg['profile'], n.get('direction', pg['direction']), n.get('phase', 0) if n.get('moving', False) else pg['frame']))
         if marks:
             for cx, cy in m['blocked']:
-                d.rectangle((round((cx * t - x) * sx), round((cy * t - y) * sy), round(((cx + 1) * t - x) * sx), round(((cx + 1) * t - y) * sy)), outline=(245, 70, 70), width=2)
+                d.rectangle((round((cx * t - x) * sx), round((cy * t - x) * sy), round(((cx + 1) * t - x) * sx), round(((cx + 1) * t - y) * sy)), outline=(245, 70, 70), width=2)
         if grid:
             for cx in range(max(0, int(x // t)), min(m['width'], int((x + vw) // t) + 1) + 1):
                 xx = round((cx * t - x) * sx)
                 d.line((xx, 0, xx, h), fill=(100, 130, 150))
-            for cy in range(max(0, int(y // t)), min(m['height'], int((y + vh) // t) + 1)):
+            for cy in range(max(0, int(y // t)), min(m['height'], int((y + vw) // t) + 1)):
                 yy = round((cy * t - y) * sy)
                 d.line((0, yy, w, yy), fill=(100, 130, 150))
         actors.append((player['y'], player['x'], p['hero'], player['direction'], player['phase'] if player['moving'] else 0))
@@ -160,30 +175,45 @@ class Scene:
             out.paste(sprite, (round((ax - x - anchor[0]) * sx), round((ay - y - anchor[1]) * sy)), sprite)
         for item in ([] if editor else state.get('images', [])):
             picture, entry = self.media(item, size)
-            factor = min(w / picture.width, h / picture.height)
-            pw = max(1, round(picture.width * factor))
-            ph = max(1, round(picture.height * factor))
-            if entry is not None and entry.get('size') == (pw, ph) and entry.get('resized') is not None:
-                picture = entry['resized']
-            else:
-                if picture.size != (pw, ph):
-                    picture = picture.resize((pw, ph), Image.BILINEAR if entry is not None else Image.LANCZOS)
-                if entry is not None:
+            pw, ph, px, py = self.picture_geometry(item, picture, size)
+            if entry is not None:
+                if entry.get('size') == (pw, ph) and entry.get('resized') is not None:
+                    picture = entry['resized']
+                else:
+                    if picture.size != (pw, ph):
+                        picture = picture.resize((pw, ph), Image.BILINEAR)
                     entry['resized'] = picture
                     entry['size'] = (pw, ph)
-            px = (w - pw) // 2
-            py = (h - ph) // 2
+            else:
+                key = (item['file'], pw, ph, item.get('fit', 'fit'))
+                cached = self.picture_cache.get(key)
+                if cached is None:
+                    if picture.size != (pw, ph):
+                        cached = picture.resize((pw, ph), Image.BILINEAR)
+                    else:
+                        cached = picture
+                    self.picture_cache[key] = cached
+                picture = cached
+            if item.get('fit', 'fit') == 'cover' and (pw > w or ph > h):
+                left = max(0, (pw - w) // 2)
+                top = max(0, (ph - h) // 2)
+                picture = picture.crop((left, top, left + min(w, pw), top + min(h, ph)))
+                px = 0
+                py = 0
             alpha = 1.0
             if item.get('transition', 'fade') == 'fade':
                 age = max(0.0, time.monotonic() - item.get('shown_at', time.monotonic()))
                 alpha = min(1.0, age / max(0.05, item.get('duration', 0.5)))
             if alpha < 1.0:
-                if entry is not None:
-                    mask = Image.new('L', picture.size, int(255 * alpha))
-                    out.paste(picture, (px, py), mask)
-                else:
-                    mask = picture.getchannel('A').point(lambda value: int(value * alpha))
-                    out.paste(picture, (px, py), mask)
+                mask_key = (item['file'], picture.size, round(alpha * 255))
+                mask = self.mask_cache.get(mask_key)
+                if mask is None:
+                    if entry is not None:
+                        mask = Image.new('L', picture.size, int(255 * alpha))
+                    else:
+                        mask = picture.getchannel('A').point(lambda value: int(value * alpha))
+                    self.mask_cache[mask_key] = mask
+                out.paste(picture, (px, py), mask)
             else:
                 out.paste(picture, (px, py))
         if state['dialogue'] and (not editor):

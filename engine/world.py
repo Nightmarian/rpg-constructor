@@ -193,7 +193,7 @@ class World:
                     if self.images[index].get('event') == key:
                         self.images.pop(index)
                         break
-                self.interact_cooldown = time.monotonic() + 0.2
+                self.event_cooldown[key] = time.monotonic() + 2.0
                 return
         p = self.player
         t = self.map['tile_size']
